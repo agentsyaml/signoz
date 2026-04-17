@@ -66,6 +66,8 @@ module.exports = {
 	rules: {
 		// Asset migration — base-path safety
 		'rulesdir/no-unsupported-asset-pattern': 'error',
+		// Base-path safety — window.open and origin-concat patterns; upgrade to error coming PR
+		'rulesdir/no-raw-absolute-path': 'warn',
 
 		// Code quality rules
 		'prefer-const': 'error', // Enforces const for variables never reassigned
