@@ -10,6 +10,7 @@ import ROUTES from 'constants/routes';
 import history from 'lib/history';
 import APIError from 'types/api/error';
 import { OrgSessionContext } from 'types/api/v2/sessions/context/get';
+import { getBaseUrl } from 'utils/basePath';
 
 import tvUrl from '@/assets/svgs/tv.svg';
 
@@ -105,7 +106,7 @@ function ForgotPassword({
 			data: {
 				email: values.email,
 				orgId: currentOrgId,
-				frontendBaseURL: window.location.origin,
+				frontendBaseURL: getBaseUrl(),
 			},
 		});
 	}, [form, forgotPasswordMutate, initialOrgId, hasMultipleOrgs]);

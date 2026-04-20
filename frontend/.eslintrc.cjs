@@ -66,8 +66,8 @@ module.exports = {
 	rules: {
 		// Asset migration — base-path safety
 		'rulesdir/no-unsupported-asset-pattern': 'error',
-		// Base-path safety — window.open and origin-concat patterns; upgrade to error coming PR
-		'rulesdir/no-raw-absolute-path': 'warn',
+		// Base-path safety — window.open and origin-concat patterns
+		'rulesdir/no-raw-absolute-path': 'error',
 
 		// Code quality rules
 		'prefer-const': 'error', // Enforces const for variables never reassigned
@@ -248,6 +248,8 @@ module.exports = {
 				'sonarjs/cognitive-complexity': 'off', // Tests can be complex
 				'sonarjs/no-identical-functions': 'off', // Similar test patterns are OK
 				'sonarjs/no-small-switch': 'off', // Small switches are OK in tests
+				// Test assertions intentionally reference window.location.origin for expected-value checks
+				'rulesdir/no-raw-absolute-path': 'off',
 			},
 		},
 		{
