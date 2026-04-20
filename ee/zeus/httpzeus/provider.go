@@ -148,6 +148,24 @@ func (provider *Provider) PutMetersV2(ctx context.Context, key string, data []by
 	return err
 }
 
+func (provider *Provider) PutMeterReadings(ctx context.Context, key string, idempotencyKey string, data []byte) error {
+	headers := http.Header{}
+	if idempotencyKey != "" {
+		headers.Set("X-Idempotency-Key", idempotencyKey)
+	}
+
+	_, err := provider.doWithHeaders(
+		ctx,
+		provider.config.URL.JoinPath("/v2/meters"),
+		http.MethodPost,
+		key,
+		data,
+		headers,
+	)
+
+	return err
+}
+
 func (provider *Provider) PutProfile(ctx context.Context, key string, profile *zeustypes.PostableProfile) error {
 	body, err := json.Marshal(profile)
 	if err != nil {
@@ -183,12 +201,21 @@ func (provider *Provider) PutHost(ctx context.Context, key string, host *zeustyp
 }
 
 func (provider *Provider) do(ctx context.Context, url *url.URL, method string, key string, requestBody []byte) ([]byte, error) {
+	return provider.doWithHeaders(ctx, url, method, key, requestBody, nil)
+}
+
+func (provider *Provider) doWithHeaders(ctx context.Context, url *url.URL, method string, key string, requestBody []byte, extraHeaders http.Header) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, method, url.String(), bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, err
 	}
 	request.Header.Set("X-Signoz-Cloud-Api-Key", key)
 	request.Header.Set("Content-Type", "application/json")
+	for k, vs := range extraHeaders {
+		for _, v := range vs {
+			request.Header.Add(k, v)
+		}
+	}
 
 	response, err := provider.httpClient.Do(request)
 	if err != nil {

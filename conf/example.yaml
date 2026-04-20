@@ -407,3 +407,23 @@ cloudintegration:
   agent:
     # The version of the cloud integration agent.
     version: v0.0.8
+
+##################### Meter Reporter #####################
+meterreporter:
+  # Specifies the meter reporter provider to use.
+  # noop: does not report any meters (community default).
+  # signoz: periodically queries meters via the querier and ships readings to Zeus (enterprise).
+  provider: noop
+  # The interval between collection ticks. Minimum 30m.
+  interval: 6h
+  # The per-tick timeout that bounds collect-and-ship work.
+  timeout: 30s
+  retry:
+    # Whether to retry on transient failures.
+    enabled: true
+    # The initial wait time before the first retry.
+    initial_interval: 5s
+    # The upper bound on backoff interval.
+    max_interval: 30s
+    # The total maximum time spent retrying.
+    max_elapsed_time: 1m

@@ -35,6 +35,11 @@ type Zeus interface {
 	// Puts the meters for the given license key using Zeus.
 	PutMetersV2(context.Context, string, []byte) error
 
+	// PutMeterReadings ships TDD-shape meter readings to the v2/meters
+	// endpoint. idempotencyKey is propagated as X-Idempotency-Key so Zeus can
+	// UPSERT on retries.
+	PutMeterReadings(ctx context.Context, licenseKey string, idempotencyKey string, body []byte) error
+
 	// Put profile for the given license key.
 	PutProfile(context.Context, string, *zeustypes.PostableProfile) error
 

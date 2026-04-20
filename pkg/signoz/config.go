@@ -22,6 +22,7 @@ import (
 	"github.com/SigNoz/signoz/pkg/global"
 	"github.com/SigNoz/signoz/pkg/identn"
 	"github.com/SigNoz/signoz/pkg/instrumentation"
+	"github.com/SigNoz/signoz/pkg/meterreporter"
 	"github.com/SigNoz/signoz/pkg/modules/cloudintegration"
 	"github.com/SigNoz/signoz/pkg/modules/metricsexplorer"
 	"github.com/SigNoz/signoz/pkg/modules/serviceaccount"
@@ -129,6 +130,9 @@ type Config struct {
 	// Auditor config
 	Auditor auditor.Config `mapstructure:"auditor"`
 
+	// MeterReporter config
+	MeterReporter meterreporter.Config `mapstructure:"meterreporter"`
+
 	// CloudIntegration config
 	CloudIntegration cloudintegration.Config `mapstructure:"cloudintegration"`
 }
@@ -162,6 +166,7 @@ func NewConfig(ctx context.Context, logger *slog.Logger, resolverConfig config.R
 		identn.NewConfigFactory(),
 		serviceaccount.NewConfigFactory(),
 		auditor.NewConfigFactory(),
+		meterreporter.NewConfigFactory(),
 		cloudintegration.NewConfigFactory(),
 	}
 
