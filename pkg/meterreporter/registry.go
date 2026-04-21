@@ -2,40 +2,46 @@ package meterreporter
 
 import (
 	"github.com/SigNoz/signoz/pkg/errors"
-	"github.com/SigNoz/signoz/pkg/querier"
-	"github.com/SigNoz/signoz/pkg/sqlstore"
 	"github.com/SigNoz/signoz/pkg/types/meterreportertypes"
-	"github.com/SigNoz/signoz/pkg/types/metrictypes"
 )
 
 // Exported names for every meter the reporter knows about. Refer to these
 // symbols (not string literals) everywhere - typos turn into compile errors
 // instead of silently producing a new meter row at Zeus.
 var (
-	MeterLogCount = meterreportertypes.MustNewName("signoz.meter.log.count")
-	MeterLogSize  = meterreportertypes.MustNewName("signoz.meter.log.size")
+	MeterLogCount             = meterreportertypes.MustNewName("signoz.meter.log.count")
+	MeterLogSize              = meterreportertypes.MustNewName("signoz.meter.log.size")
+	MeterMetricDatapointCount = meterreportertypes.MustNewName("signoz.meter.metric.datapoint.count")
+	MeterMetricDatapointSize  = meterreportertypes.MustNewName("signoz.meter.metric.datapoint.size")
 )
 
-func baseMeters(q querier.Querier, sqlstore sqlstore.SQLStore) []*Meter {
-	queryCollector := NewQueryCollector(q)
-	retentionAwareQueryCollector := NewRetentionDimensionsCollector(queryCollector, NewSQLRetentionResolver(sqlstore))
+const AggregationSum = "sum"
 
+func baseMeters() []*Meter {
 	meters := []*Meter{
 		{
-			Name:             MeterLogCount,
-			Unit:             "count",
-			RetentionDomain:  RetentionDomainLogs,
-			TimeAggregation:  metrictypes.TimeAggregationSum,
-			SpaceAggregation: metrictypes.SpaceAggregationSum,
-			Collector:        retentionAwareQueryCollector,
+			Name:        MeterLogCount,
+			Unit:        "count",
+			Aggregation: AggregationSum,
+			Collect:     CollectLogCountMeter,
 		},
 		{
-			Name:             MeterLogSize,
-			Unit:             "bytes",
-			RetentionDomain:  RetentionDomainLogs,
-			TimeAggregation:  metrictypes.TimeAggregationSum,
-			SpaceAggregation: metrictypes.SpaceAggregationSum,
-			Collector:        retentionAwareQueryCollector,
+			Name:        MeterLogSize,
+			Unit:        "bytes",
+			Aggregation: AggregationSum,
+			Collect:     CollectLogSizeMeter,
+		},
+		{
+			Name:        MeterMetricDatapointCount,
+			Unit:        "count",
+			Aggregation: AggregationSum,
+			Collect:     CollectMetricDatapointCountMeter,
+		},
+		{
+			Name:        MeterMetricDatapointSize,
+			Unit:        "bytes",
+			Aggregation: AggregationSum,
+			Collect:     CollectMetricDatapointSizeMeter,
 		},
 	}
 
@@ -44,8 +50,8 @@ func baseMeters(q querier.Querier, sqlstore sqlstore.SQLStore) []*Meter {
 }
 
 // DefaultMeters returns the hardcoded query-backed meters supported by the reporter.
-func DefaultMeters(q querier.Querier, sqlstore sqlstore.SQLStore) ([]Meter, error) {
-	meters := baseMeters(q, sqlstore)
+func DefaultMeters() ([]Meter, error) {
+	meters := baseMeters()
 	if err := validateMeters(meters...); err != nil {
 		return nil, err
 	}
@@ -62,8 +68,9 @@ func DefaultMeters(q querier.Querier, sqlstore sqlstore.SQLStore) ([]Meter, erro
 // Every meter must:
 //   - have a non-zero Name,
 //   - have a non-empty Unit,
-//   - have a non-nil Collector,
-//   - use a unique (Name, SpaceAggregation) pair.
+//   - have a non-empty Aggregation,
+//   - have a non-nil Collect function,
+//   - use a unique (Name, Aggregation) pair.
 func validateMeters(meters ...*Meter) error {
 	seen := make(map[string]struct{}, len(meters))
 
@@ -77,13 +84,16 @@ func validateMeters(meters ...*Meter) error {
 		if meter.Unit == "" {
 			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "meter %q has no unit", meter.Name.String())
 		}
-		if meter.Collector == nil {
-			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "meter %q has no collector", meter.Name.String())
+		if meter.Aggregation == "" {
+			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "meter %q has no aggregation", meter.Name.String())
+		}
+		if meter.Collect == nil {
+			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "meter %q has no collector function", meter.Name.String())
 		}
 
-		key := meter.Name.String() + "|" + meter.SpaceAggregation.StringValue()
+		key := meter.Name.String() + "|" + meter.Aggregation
 		if _, ok := seen[key]; ok {
-			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "duplicate meter %q with aggregation %q", meter.Name.String(), meter.SpaceAggregation.StringValue())
+			return errors.Newf(errors.TypeInvalidInput, ErrCodeInvalidInput, "duplicate meter %q with aggregation %q", meter.Name.String(), meter.Aggregation)
 		}
 		seen[key] = struct{}{}
 	}

@@ -11,83 +11,52 @@ import (
 	"github.com/SigNoz/signoz/pkg/telemetrymetrics"
 	"github.com/SigNoz/signoz/pkg/telemetrytraces"
 	"github.com/SigNoz/signoz/pkg/types"
-	"github.com/SigNoz/signoz/pkg/types/meterreportertypes"
 	"github.com/SigNoz/signoz/pkg/valuer"
 )
 
 type RetentionDomain string
 
 const (
-	RetentionDomainNone    RetentionDomain = ""
 	RetentionDomainLogs    RetentionDomain = "logs"
 	RetentionDomainMetrics RetentionDomain = "metrics"
 	RetentionDomainTraces  RetentionDomain = "traces"
 )
 
-type retentionResolver interface {
-	ResolveDays(ctx context.Context, orgID valuer.UUID, domain RetentionDomain) (string, bool, error)
+// defaultRetentionDaysByDomain is the per-domain fallback used when no
+// ttl_setting row exists for the org. Values mirror the TTL set by the
+// canonical ClickHouse schema for each domain's main table:
+//
+//   - logs:    signoz_logs.logs_v2            → 15 days
+//   - metrics: signoz_metrics.samples_v4      → 2 592 000 s  = 30 days
+//   - traces:  signoz_traces.signoz_index_v3  → 1 296 000 s  = 15 days
+//
+// If a migration ever changes the DDL default for a domain, update the
+// corresponding entry here so billing readings match reality.
+var defaultRetentionDaysByDomain = map[RetentionDomain]int{
+	RetentionDomainLogs:    types.DefaultRetentionDays,
+	RetentionDomainMetrics: 30,
+	RetentionDomainTraces:  15,
 }
 
-type retentionDimensionsCollector struct {
-	inner    Collector
-	resolver retentionResolver
-}
-
-func NewRetentionDimensionsCollector(inner Collector, resolver retentionResolver) Collector {
-	if inner == nil || resolver == nil {
-		return inner
-	}
-
-	return &retentionDimensionsCollector{
-		inner:    inner,
-		resolver: resolver,
-	}
-}
-
-func (c *retentionDimensionsCollector) Collect(ctx context.Context, meter Meter, orgID valuer.UUID, window Window) ([]meterreportertypes.Reading, error) {
-	readings, err := c.inner.Collect(ctx, meter, orgID, window)
-	if err != nil || len(readings) == 0 || meter.RetentionDomain == RetentionDomainNone {
-		return readings, err
-	}
-
-	retentionDays, ok, err := c.resolver.ResolveDays(ctx, orgID, meter.RetentionDomain)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return readings, nil
-	}
-
-	for i := range readings {
-		if readings[i].Dimensions == nil {
-			readings[i].Dimensions = make(map[string]string, 1)
-		}
-		readings[i].Dimensions[DimensionRetentionDays] = retentionDays
-	}
-
-	return readings, nil
-}
-
-type sqlRetentionResolver struct {
-	sqlstore sqlstore.SQLStore
-}
-
-func NewSQLRetentionResolver(sqlstore sqlstore.SQLStore) retentionResolver {
+// resolveRetentionDays returns the configured retention for orgID in the given
+// domain as a string suitable for the DimensionRetentionDays dimension.
+//
+// It queries the ttl_setting table using the local (non-distributed) table
+// name, which is what the V2 retention writer uses. The TTL column is stored
+// in days by the V2 path. When no row exists or the stored TTL is non-positive,
+// defaultRetentionDaysByDomain provides the per-domain ClickHouse default so
+// the reading always carries an accurate retention dimension.
+func resolveRetentionDays(ctx context.Context, sqlstore sqlstore.SQLStore, orgID valuer.UUID, domain RetentionDomain) (string, bool, error) {
 	if sqlstore == nil {
-		return nil
+		return "", false, nil
 	}
-
-	return &sqlRetentionResolver{sqlstore: sqlstore}
-}
-
-func (r *sqlRetentionResolver) ResolveDays(ctx context.Context, orgID valuer.UUID, domain RetentionDomain) (string, bool, error) {
 	tableName, ok := retentionTableName(domain)
 	if !ok {
 		return "", false, nil
 	}
 
 	ttl := new(types.TTLSetting)
-	err := r.sqlstore.
+	err := sqlstore.
 		BunDB().
 		NewSelect().
 		Model(ttl).
@@ -98,26 +67,40 @@ func (r *sqlRetentionResolver) ResolveDays(ctx context.Context, orgID valuer.UUI
 		Scan(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", false, nil
+			return domainFallbackRetention(domain)
 		}
 		return "", false, errors.Wrapf(err, errors.TypeInternal, ErrCodeReportFailed, "load retention for domain %q", domain)
 	}
 
 	if ttl.TTL <= 0 {
-		return "", false, nil
+		return domainFallbackRetention(domain)
 	}
 
-	return strconv.Itoa(ttl.TTL / (24 * 3600)), true, nil
+	// TTL is stored in days by the V2 retention path (SetCustomRetentionV2).
+	return strconv.Itoa(ttl.TTL), true, nil
 }
 
+// domainFallbackRetention returns the per-domain default retention used when
+// no ttl_setting row exists for an org.
+func domainFallbackRetention(domain RetentionDomain) (string, bool, error) {
+	days, ok := defaultRetentionDaysByDomain[domain]
+	if !ok {
+		return "", false, errors.Newf(errors.TypeInternal, ErrCodeReportFailed, "no default retention defined for domain %q", domain)
+	}
+	return strconv.Itoa(days), true, nil
+}
+
+// retentionTableName returns the local ClickHouse table name used as the key
+// in ttl_setting rows for each domain. Must match what SetCustomRetentionV2
+// writes (the local, not distributed, table name).
 func retentionTableName(domain RetentionDomain) (string, bool) {
 	switch domain {
 	case RetentionDomainLogs:
-		return telemetrylogs.DBName + "." + telemetrylogs.LogsV2TableName, true
+		return telemetrylogs.DBName + "." + telemetrylogs.LogsV2LocalTableName, true
 	case RetentionDomainMetrics:
-		return telemetrymetrics.DBName + "." + telemetrymetrics.SamplesV4TableName, true
+		return telemetrymetrics.DBName + "." + telemetrymetrics.SamplesV4LocalTableName, true
 	case RetentionDomainTraces:
-		return telemetrytraces.DBName + "." + telemetrytraces.SpanIndexV3TableName, true
+		return telemetrytraces.DBName + "." + telemetrytraces.SpanIndexV3LocalTableName, true
 	default:
 		return "", false
 	}

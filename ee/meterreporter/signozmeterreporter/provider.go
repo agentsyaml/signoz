@@ -11,8 +11,8 @@ import (
 	"github.com/SigNoz/signoz/pkg/licensing"
 	"github.com/SigNoz/signoz/pkg/meterreporter"
 	"github.com/SigNoz/signoz/pkg/modules/organization"
-	"github.com/SigNoz/signoz/pkg/querier"
 	"github.com/SigNoz/signoz/pkg/sqlstore"
+	"github.com/SigNoz/signoz/pkg/telemetrystore"
 	"github.com/SigNoz/signoz/pkg/zeus"
 )
 
@@ -25,6 +25,7 @@ type Provider struct {
 	settings factory.ScopedProviderSettings
 	config   meterreporter.Config
 	meters   []meterreporter.Meter
+	deps     meterreporter.CollectorDeps
 
 	licensing licensing.Licensing
 	orgGetter organization.Getter
@@ -39,7 +40,7 @@ type Provider struct {
 // NewFactory returns a ProviderFactory for the signoz meter reporter.
 func NewFactory(
 	licensing licensing.Licensing,
-	querier querier.Querier,
+	telemetryStore telemetrystore.TelemetryStore,
 	sqlstore sqlstore.SQLStore,
 	orgGetter organization.Getter,
 	zeus zeus.Zeus,
@@ -47,7 +48,7 @@ func NewFactory(
 	return factory.NewProviderFactory(
 		factory.MustNewName("signoz"),
 		func(ctx context.Context, providerSettings factory.ProviderSettings, config meterreporter.Config) (meterreporter.Reporter, error) {
-			return newProvider(ctx, providerSettings, config, licensing, querier, sqlstore, orgGetter, zeus)
+			return newProvider(ctx, providerSettings, config, licensing, telemetryStore, sqlstore, orgGetter, zeus)
 		},
 	)
 }
@@ -57,7 +58,7 @@ func newProvider(
 	providerSettings factory.ProviderSettings,
 	config meterreporter.Config,
 	licensing licensing.Licensing,
-	querier querier.Querier,
+	telemetryStore telemetrystore.TelemetryStore,
 	sqlstore sqlstore.SQLStore,
 	orgGetter organization.Getter,
 	zeus zeus.Zeus,
@@ -69,15 +70,19 @@ func newProvider(
 		return nil, err
 	}
 
-	meters, err := meterreporter.DefaultMeters(querier, sqlstore)
+	meters, err := meterreporter.DefaultMeters()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Provider{
-		settings:  settings,
-		config:    config,
-		meters:    meters,
+		settings: settings,
+		config:   config,
+		meters:   meters,
+		deps: meterreporter.CollectorDeps{
+			TelemetryStore: telemetryStore,
+			SQLStore:       sqlstore,
+		},
 		licensing: licensing,
 		orgGetter: orgGetter,
 		zeus:      zeus,

@@ -159,9 +159,9 @@ func runServer(ctx context.Context, config signoz.Config, logger *slog.Logger) e
 			}
 			return factories
 		},
-		func(licensing licensing.Licensing, querier querier.Querier, sqlStore sqlstore.SQLStore, orgGetter organization.Getter, zeus zeus.Zeus) factory.NamedMap[factory.ProviderFactory[meterreporter.Reporter, meterreporter.Config]] {
+		func(licensing licensing.Licensing, telemetryStore telemetrystore.TelemetryStore, sqlStore sqlstore.SQLStore, orgGetter organization.Getter, zeus zeus.Zeus) factory.NamedMap[factory.ProviderFactory[meterreporter.Reporter, meterreporter.Config]] {
 			factories := signoz.NewMeterReporterProviderFactories()
-			if err := factories.Add(signozmeterreporter.NewFactory(licensing, querier, sqlStore, orgGetter, zeus)); err != nil {
+			if err := factories.Add(signozmeterreporter.NewFactory(licensing, telemetryStore, sqlStore, orgGetter, zeus)); err != nil {
 				panic(err)
 			}
 			return factories
