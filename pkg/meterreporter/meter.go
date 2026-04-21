@@ -4,20 +4,23 @@ import (
 	"github.com/SigNoz/signoz/pkg/types/meterreportertypes"
 )
 
-// Meter is one registered meter - a name, billing metadata, and the function that knows how to produce readings for it.
+// Meter is a single registered billing meter — a name, its billing metadata,
+// and the function that produces Readings for it.
 //
-// The same metric Name may appear multiple times in the registry as long as each entry
-// uses a different Aggregation (for example min/max/p99 of the same source meter).
+// The same Name may appear multiple times in the registry provided each entry
+// uses a different Aggregation (e.g. a sum and a p99 of the same source meter).
+// The (Name, Aggregation) pair is what Zeus keys on.
 type Meter struct {
-	// Name is the meter's identifier.
+	// Name is the billing identifier emitted on every Reading.
 	Name meterreportertypes.Name
 
-	// Unit is available to the collector for the signoz.billing.unit dimension.
+	// Unit is copied onto DimensionUnit by the collector.
 	Unit string
 
-	// Aggregation is available to the collector for the signoz.billing.aggregation dimension.
+	// Aggregation is copied onto DimensionAggregation and participates in the
+	// uniqueness check in validateMeters.
 	Aggregation string
 
-	// Collect knows how to turn this Meter into zero or more Readings per tick.
+	// Collect turns this Meter into zero or more Readings per tick.
 	Collect CollectorFunc
 }

@@ -13,16 +13,16 @@ import (
 	"github.com/SigNoz/signoz/pkg/valuer"
 )
 
-// tick collects one round of readings for the instance's org and ships them to
-// zeus under its active license. Per-collector errors are logged and counted
-// but do not abort the tick.
+// tick runs one collect-and-ship cycle for the instance's active org. Every
+// tick queries the same UTC-day window (00:00 → now), so repeat ticks within
+// the day UPSERT at Zeus via the date-scoped idempotency key. Per-collector
+// and ship failures are logged and counted — they do not abort the tick or
+// propagate, because the reporter must keep ticking on the next interval.
 func (provider *Provider) tick(ctx context.Context) error {
 	now := time.Now().UTC()
-
-	// Go to 00:00 UTC of current day (in milliseconds)
+	// Align to 00:00 UTC of the current day. Reading.Timestamp inherits this,
+	// so every sample within the day maps to the same billing bucket.
 	bucketStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-
-	// Period in which meter data will be queried: 00:00 UTC → now UTC
 	window := meterreporter.Window{
 		StartMs: bucketStart.UnixMilli(),
 		EndMs:   now.UnixMilli(),
@@ -36,8 +36,10 @@ func (provider *Provider) tick(ctx context.Context) error {
 		return nil
 	}
 	if len(orgs) > 1 {
-		// Billing is scoped to a single license per instance; the meter data in signoz_meter has no org marker,
-		// so we can't split a multi-org instance correctly. Report against the first org and warn.
+		// Billing is scoped to a single license per instance, and the meter data
+		// in signoz_meter carries no org marker — we can't attribute samples to
+		// one org versus another. Report against the first org and warn so the
+		// mis-configuration is visible in logs.
 		provider.settings.Logger().WarnContext(ctx, "multiple orgs on a single instance; reporting only the first", slog.Int("org_count", len(orgs)))
 	}
 	org := orgs[0]
@@ -51,13 +53,18 @@ func (provider *Provider) tick(ctx context.Context) error {
 		return nil
 	}
 
+	collectStart := time.Now()
 	readings := provider.collectOrgReadings(ctx, org.ID, window)
+	provider.metrics.collectDuration.Record(ctx, time.Since(collectStart).Seconds())
 	if len(readings) == 0 {
 		return nil
 	}
 
 	date := bucketStart.Format("2006-01-02")
-	if err := provider.shipReadings(ctx, license.Key, date, readings); err != nil {
+	shipStart := time.Now()
+	err = provider.shipReadings(ctx, license.Key, date, readings)
+	provider.metrics.shipDuration.Record(ctx, time.Since(shipStart).Seconds())
+	if err != nil {
 		provider.metrics.postErrors.Add(ctx, 1)
 		provider.settings.Logger().ErrorContext(ctx, "failed to ship meter readings", errors.Attr(err), slog.Int("readings", len(readings)))
 		return nil
@@ -68,8 +75,9 @@ func (provider *Provider) tick(ctx context.Context) error {
 }
 
 // collectOrgReadings runs every registered Meter's Collector against orgID and
-// returns their combined Readings. Individual meter failures are logged and
-// skipped — one bad meter does not block the rest of the batch.
+// returns the combined Readings. One bad meter must not block the batch, so
+// per-meter failures are logged and counted via collectErrors and then skipped
+// — the remaining meters still ship.
 func (provider *Provider) collectOrgReadings(ctx context.Context, orgID valuer.UUID, window meterreporter.Window) []meterreportertypes.Reading {
 	readings := make([]meterreportertypes.Reading, 0, len(provider.meters))
 
@@ -87,18 +95,20 @@ func (provider *Provider) collectOrgReadings(ctx context.Context, orgID valuer.U
 	return readings
 }
 
-// shipReadings encodes the batch as PostableMeterReadings JSON and, in the
-// fully wired flow, POSTs it to Zeus under a date-scoped idempotency key so
-// subsequent ticks within the same UTC day UPSERT.
+// shipReadings serializes the batch as PostableMeterReadings and, in the fully
+// wired flow, POSTs it to Zeus under a date-scoped idempotency key so repeat
+// ticks within the same UTC day UPSERT instead of duplicating usage.
 //
-// ! TEMPORARY: the Zeus PutMeterReadings endpoint is not live yet. Until it
-// lands, we log the payload at INFO so staging can verify collection end-to-end
-// without a server counterpart. Restore the Zeus call (and drop the log) once
-// the API ships.
+// ! TEMPORARY: the Zeus PutMeterReadings endpoint isn't live yet. Until it
+// ships we log the serialized payload at INFO instead, which lets staging
+// verify collection end-to-end without a server counterpart. Once the API
+// lands, drop the log block and restore:
+//
+//	if err := provider.zeus.PutMeterReadings(ctx, licenseKey, idempotencyKey, body); err != nil { ... }
 func (provider *Provider) shipReadings(ctx context.Context, licenseKey string, date string, readings []meterreportertypes.Reading) error {
 	idempotencyKey := fmt.Sprintf("meter-cron:%s", date)
 
-	// ! TODO: this needs to be fixed in the format we make the zeus API
+	// ! TODO: confirm this payload shape once the Zeus API is finalized.
 	payload := meterreportertypes.PostableMeterReadings{
 		IdempotencyKey: idempotencyKey,
 		Readings:       readings,
@@ -109,17 +119,15 @@ func (provider *Provider) shipReadings(ctx context.Context, licenseKey string, d
 		return errors.Wrapf(err, errors.TypeInternal, meterreporter.ErrCodeReportFailed, "marshal meter readings")
 	}
 
-	// ! TEMPORARY: skip the Zeus call until the API is available. Logging the
-	// serialized payload instead so we can eyeball readings in staging logs.
-	// When Zeus is ready, replace the log below with:
-	//   if err := provider.zeus.PutMeterReadings(ctx, licenseKey, idempotencyKey, body); err != nil { ... }
 	provider.settings.Logger().InfoContext(ctx, "meter readings (Zeus API not yet live — dry-run log)",
 		slog.String("license_key", licenseKey),
 		slog.String("idempotency_key", idempotencyKey),
 		slog.Int("readings", len(readings)),
 		slog.String("payload", string(body)),
 	)
-	_ = provider.zeus // keep the field referenced so the dep wiring does not bitrot
+	// Keep the zeus dep referenced so the factory signature and DI wiring don't
+	// bitrot while the POST is stubbed out.
+	_ = provider.zeus
 
 	return nil
 }

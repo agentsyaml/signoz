@@ -10,6 +10,8 @@ type reporterMetrics struct {
 	readingsEmitted metric.Int64Counter
 	collectErrors   metric.Int64Counter
 	postErrors      metric.Int64Counter
+	collectDuration metric.Float64Histogram
+	shipDuration    metric.Float64Histogram
 }
 
 func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
@@ -35,6 +37,16 @@ func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
 		errs = errors.Join(errs, err)
 	}
 
+	collectDuration, err := meter.Float64Histogram("signoz.meterreporter.collect.duration", metric.WithDescription("Time taken to collect readings from all registered meters in a single tick."), metric.WithUnit("s"))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+
+	shipDuration, err := meter.Float64Histogram("signoz.meterreporter.ship.duration", metric.WithDescription("Time taken to ship (marshal + POST) collected readings to Zeus in a single tick."), metric.WithUnit("s"))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	if errs != nil {
 		return nil, errs
 	}
@@ -44,5 +56,7 @@ func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
 		readingsEmitted: readingsEmitted,
 		collectErrors:   collectErrors,
 		postErrors:      postErrors,
+		collectDuration: collectDuration,
+		shipDuration:    shipDuration,
 	}, nil
 }

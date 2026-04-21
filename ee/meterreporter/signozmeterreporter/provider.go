@@ -19,8 +19,9 @@ import (
 var _ factory.ServiceWithHealthy = (*Provider)(nil)
 
 // Provider is the enterprise meter reporter. It ticks on a fixed interval,
-// invokes every registered Collector against every licensed org, and ships
-// the resulting readings to Zeus.
+// invokes every registered Collector against the instance's licensed org, and
+// ships the resulting readings to Zeus. Community builds wire a noop provider
+// instead, so this type never runs there.
 type Provider struct {
 	settings factory.ScopedProviderSettings
 	config   meterreporter.Config
@@ -37,7 +38,9 @@ type Provider struct {
 	metrics      *reporterMetrics
 }
 
-// NewFactory returns a ProviderFactory for the signoz meter reporter.
+// NewFactory wires the signoz meter reporter into the provider registry. The
+// returned factory is registered alongside the noop factory so the "provider"
+// config field picks the right implementation at startup.
 func NewFactory(
 	licensing licensing.Licensing,
 	telemetryStore telemetrystore.TelemetryStore,
@@ -92,9 +95,10 @@ func newProvider(
 	}, nil
 }
 
-// Start runs an initial tick and then loops on the configured interval until
-// Stop is called. Start blocks until the goroutine returns, matching the
-// factory.Service contract used across the codebase.
+// Start runs an initial tick, then loops on Config.Interval until Stop is
+// called. It blocks until the loop goroutine returns — that shape matches the
+// factory.Service contract the rest of the codebase uses, so the supervisor
+// can join on it the same way as other long-running services.
 func (provider *Provider) Start(ctx context.Context) error {
 	close(provider.healthyC)
 
@@ -121,8 +125,9 @@ func (provider *Provider) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop requests the reporter to stop, waits for the in-flight tick (bounded by
-// Config.Timeout) to complete, and returns.
+// Stop signals the tick loop and waits for any in-flight tick to finish.
+// Drain time is bounded by Config.Timeout because every tick runs under that
+// deadline, so shutdown can't stall on a hung ClickHouse or Zeus call.
 func (provider *Provider) Stop(_ context.Context) error {
 	<-provider.healthyC
 	select {
@@ -139,9 +144,9 @@ func (provider *Provider) Healthy() <-chan struct{} {
 	return provider.healthyC
 }
 
-// runTick executes one collect-and-ship cycle under Config.Timeout. Errors are
-// logged and counted; they do not propagate because the reporter must keep
-// ticking on subsequent intervals.
+// runTick executes one collect-and-ship cycle under Config.Timeout. Errors
+// from tick are logged and counted only — they never propagate, because the
+// reporter must keep firing on subsequent intervals even if one batch fails.
 func (provider *Provider) runTick(parentCtx context.Context) {
 	provider.metrics.ticks.Add(parentCtx, 1)
 

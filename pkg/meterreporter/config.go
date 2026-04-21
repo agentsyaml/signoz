@@ -10,16 +10,21 @@ import (
 var _ factory.Config = (*Config)(nil)
 
 type Config struct {
-	// Provider selects the reporter implementation (default "noop").
+	// Provider picks the reporter implementation. "noop" is the default and is
+	// what community builds ship; "signoz" is the enterprise cron-based reporter.
 	Provider string `mapstructure:"provider"`
 
-	// Interval is how often the reporter collects and ships meter readings.
+	// Interval is how often the reporter ticks (collect + ship). The validator
+	// enforces a 5m floor — any sooner and we'd hammer ClickHouse for nothing,
+	// since Zeus UPSERTs inside a UTC day anyway.
 	Interval time.Duration `mapstructure:"interval"`
 
-	// Timeout bounds a single collect-and-ship cycle.
+	// Timeout bounds a single tick (collect + marshal + POST). Must be strictly
+	// less than Interval so a slow tick can't overlap the next one.
 	Timeout time.Duration `mapstructure:"timeout"`
 
-	// Retry configures exponential backoff for transient Zeus failures.
+	// Retry configures exponential backoff around the Zeus POST. Tick-level
+	// failures don't propagate — see runTick in the enterprise provider.
 	Retry RetryConfig `mapstructure:"retry"`
 }
 

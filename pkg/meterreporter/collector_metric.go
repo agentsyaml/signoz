@@ -10,10 +10,13 @@ import (
 	"github.com/huandu/go-sqlbuilder"
 )
 
-// CollectMetricDatapointCountMeter emits a single Reading for
-// signoz.meter.metric.datapoint.count. Each metric-meter collector owns its
-// own query end-to-end — duplication is preferred over shared helpers because
-// these paths are billing-critical.
+// Collectors in this file are intentionally duplicated per meter. Do not fold
+// them into a shared helper — these are billing-critical paths, and keeping
+// each query isolated means a bug in one cannot silently corrupt every
+// customer's bill across every meter.
+
+// CollectMetricDatapointCountMeter sums every signoz.meter.metric.datapoint.count
+// sample in the window and emits one Reading for the org.
 func CollectMetricDatapointCountMeter(ctx context.Context, deps CollectorDeps, meter Meter, orgID valuer.UUID, window Window) ([]meterreportertypes.Reading, error) {
 	if deps.TelemetryStore == nil {
 		return nil, errors.New(errors.TypeInternal, ErrCodeReportFailed, "telemetry store is nil")
@@ -57,10 +60,8 @@ func CollectMetricDatapointCountMeter(ctx context.Context, deps CollectorDeps, m
 	}}, nil
 }
 
-// CollectMetricDatapointSizeMeter emits a single Reading for
-// signoz.meter.metric.datapoint.size. Each metric-meter collector owns its
-// own query end-to-end — duplication is preferred over shared helpers because
-// these paths are billing-critical.
+// CollectMetricDatapointSizeMeter sums every signoz.meter.metric.datapoint.size
+// sample in the window and emits one Reading for the org.
 func CollectMetricDatapointSizeMeter(ctx context.Context, deps CollectorDeps, meter Meter, orgID valuer.UUID, window Window) ([]meterreportertypes.Reading, error) {
 	if deps.TelemetryStore == nil {
 		return nil, errors.New(errors.TypeInternal, ErrCodeReportFailed, "telemetry store is nil")
