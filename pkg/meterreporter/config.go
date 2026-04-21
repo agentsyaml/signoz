@@ -49,8 +49,8 @@ func NewConfigFactory() factory.ConfigFactory {
 }
 
 func (c Config) Validate() error {
-	if c.Interval < 30*time.Minute {
-		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::interval must be at least 30m")
+	if c.Interval < 5*time.Minute {
+		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::interval must be at least 5m")
 	}
 
 	if c.Timeout <= 0 {
