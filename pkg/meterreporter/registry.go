@@ -13,6 +13,8 @@ var (
 	MeterLogSize              = meterreportertypes.MustNewName("signoz.meter.log.size")
 	MeterMetricDatapointCount = meterreportertypes.MustNewName("signoz.meter.metric.datapoint.count")
 	MeterMetricDatapointSize  = meterreportertypes.MustNewName("signoz.meter.metric.datapoint.size")
+	MeterSpanCount            = meterreportertypes.MustNewName("signoz.meter.span.count")
+	MeterSpanSize             = meterreportertypes.MustNewName("signoz.meter.span.size")
 )
 
 const AggregationSum = "sum"
@@ -42,6 +44,18 @@ func baseMeters() []*Meter {
 			Unit:        "bytes",
 			Aggregation: AggregationSum,
 			Collect:     CollectMetricDatapointSizeMeter,
+		},
+		{
+			Name:        MeterSpanCount,
+			Unit:        "count",
+			Aggregation: AggregationSum,
+			Collect:     CollectSpanCountMeter,
+		},
+		{
+			Name:        MeterSpanSize,
+			Unit:        "bytes",
+			Aggregation: AggregationSum,
+			Collect:     CollectSpanSizeMeter,
 		},
 	}
 
