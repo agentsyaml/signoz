@@ -215,6 +215,31 @@ module.exports = {
 				message:
 					'Avoid calling .getState() directly. Export a standalone action from the store instead.',
 			},
+			{
+				selector:
+					"MemberExpression[object.name='window'][property.name='localStorage']",
+				message:
+					'Use getLocalStorageKey/setLocalStorageKey/removeLocalStorageKey from api/browser/localstorage instead.',
+			},
+			{
+				selector:
+					"MemberExpression[object.name='window'][property.name='sessionStorage']",
+				message:
+					'Use getSessionStorageApi/setSessionStorageApi/removeSessionStorageApi from api/browser/sessionstorage instead.',
+			},
+		],
+		'no-restricted-globals': [
+			'error',
+			{
+				name: 'localStorage',
+				message:
+					'Use getLocalStorageKey/setLocalStorageKey/removeLocalStorageKey from api/browser/localstorage instead.',
+			},
+			{
+				name: 'sessionStorage',
+				message:
+					'Use getSessionStorageApi/setSessionStorageApi/removeSessionStorageApi from api/browser/sessionstorage instead.',
+			},
 		],
 	},
 	overrides: [
@@ -250,6 +275,9 @@ module.exports = {
 				'sonarjs/no-small-switch': 'off', // Small switches are OK in tests
 				// Test assertions intentionally reference window.location.origin for expected-value checks
 				'rulesdir/no-raw-absolute-path': 'off',
+				// Tests may access storage directly for setup/assertion/spy purposes
+				'no-restricted-globals': 'off',
+				'no-restricted-syntax': 'off',
 			},
 		},
 		{
