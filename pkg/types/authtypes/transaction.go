@@ -20,6 +20,11 @@ type GettableTransaction struct {
 	Authorized bool     `json:"authorized" required:"true"`
 }
 
+type TransactionWithAuthorization struct {
+	Transaction *Transaction
+	Authorized  bool
+}
+
 func NewTransaction(relation Relation, object Object) (*Transaction, error) {
 	if !slices.Contains(TypeableRelations[object.Resource.Type], relation) {
 		return nil, errors.Newf(errors.TypeInvalidInput, ErrCodeAuthZInvalidRelation, "invalid relation %s for type %s", relation.StringValue(), object.Resource.Type.StringValue())
@@ -28,13 +33,12 @@ func NewTransaction(relation Relation, object Object) (*Transaction, error) {
 	return &Transaction{ID: valuer.GenerateUUID(), Relation: relation, Object: object}, nil
 }
 
-func NewGettableTransaction(transactions []*Transaction, results map[string]*TupleKeyAuthorization) []*GettableTransaction {
-	gettableTransactions := make([]*GettableTransaction, len(transactions))
-	for i, txn := range transactions {
-		result := results[txn.ID.StringValue()]
+func NewGettableTransaction(results []*TransactionWithAuthorization) []*GettableTransaction {
+	gettableTransactions := make([]*GettableTransaction, len(results))
+	for i, result := range results {
 		gettableTransactions[i] = &GettableTransaction{
-			Relation:   txn.Relation,
-			Object:     txn.Object,
+			Relation:   result.Transaction.Relation,
+			Object:     result.Transaction.Object,
 			Authorized: result.Authorized,
 		}
 	}

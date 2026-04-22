@@ -18,25 +18,31 @@ import (
 )
 
 type provider struct {
-	server *openfgaserver.Server
-	store  authtypes.RoleStore
+	server                    *openfgaserver.Server
+	store                     authtypes.RoleStore
+	registry                  []authz.RegisterTypeable
+	managedRolesByTransaction map[string][]string
 }
 
-func NewProviderFactory(sqlstore sqlstore.SQLStore, openfgaSchema []openfgapkgtransformer.ModuleFile, openfgaDataStore storage.OpenFGADatastore) factory.ProviderFactory[authz.AuthZ, authz.Config] {
+func NewProviderFactory(sqlstore sqlstore.SQLStore, openfgaSchema []openfgapkgtransformer.ModuleFile, openfgaDataStore storage.OpenFGADatastore, registry ...authz.RegisterTypeable) factory.ProviderFactory[authz.AuthZ, authz.Config] {
 	return factory.NewProviderFactory(factory.MustNewName("openfga"), func(ctx context.Context, ps factory.ProviderSettings, config authz.Config) (authz.AuthZ, error) {
-		return newOpenfgaProvider(ctx, ps, config, sqlstore, openfgaSchema, openfgaDataStore)
+		return newOpenfgaProvider(ctx, ps, config, sqlstore, openfgaSchema, openfgaDataStore, registry)
 	})
 }
 
-func newOpenfgaProvider(ctx context.Context, settings factory.ProviderSettings, config authz.Config, sqlstore sqlstore.SQLStore, openfgaSchema []openfgapkgtransformer.ModuleFile, openfgaDataStore storage.OpenFGADatastore) (authz.AuthZ, error) {
+func newOpenfgaProvider(ctx context.Context, settings factory.ProviderSettings, config authz.Config, sqlstore sqlstore.SQLStore, openfgaSchema []openfgapkgtransformer.ModuleFile, openfgaDataStore storage.OpenFGADatastore, registry []authz.RegisterTypeable) (authz.AuthZ, error) {
 	server, err := openfgaserver.NewOpenfgaServer(ctx, settings, config, sqlstore, openfgaSchema, openfgaDataStore)
 	if err != nil {
 		return nil, err
 	}
 
+	managedRolesByTransaction := buildManagedRolesByTransaction(registry)
+
 	return &provider{
-		server: server,
-		store:  sqlauthzstore.NewSqlAuthzStore(sqlstore),
+		server:                    server,
+		store:                     sqlauthzstore.NewSqlAuthzStore(sqlstore),
+		registry:                  registry,
+		managedRolesByTransaction: managedRolesByTransaction,
 	}, nil
 }
 
@@ -243,6 +249,111 @@ func (provider *provider) PatchObjects(_ context.Context, _ valuer.UUID, _ strin
 
 func (provider *provider) Delete(_ context.Context, _ valuer.UUID, _ valuer.UUID) error {
 	return errors.Newf(errors.TypeUnsupported, authtypes.ErrCodeRoleUnsupported, "not implemented")
+}
+
+func (provider *provider) CheckTransactions(ctx context.Context, subject string, orgID valuer.UUID, transactions []*authtypes.Transaction) ([]*authtypes.TransactionWithAuthorization, error) {
+	if len(transactions) == 0 {
+		return make([]*authtypes.TransactionWithAuthorization, 0), nil
+	}
+
+	resultsByTxnID := make(map[string]bool, len(transactions))
+	tuples := make(map[string]*openfgav1.TupleKey)
+
+	for _, txn := range transactions {
+		if txn.Object.Resource.Type == authtypes.TypeRole && txn.Relation == authtypes.RelationAssignee {
+			// Role assignment transactions are checked directly as tuples
+			typeable, err := authtypes.NewTypeableFromType(txn.Object.Resource.Type, txn.Object.Resource.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			txnTuples, err := typeable.Tuples(subject, txn.Relation, []authtypes.Selector{txn.Object.Selector}, orgID)
+			if err != nil {
+				return nil, err
+			}
+
+			tuples[txn.ID.StringValue()] = txnTuples[0]
+			continue
+		}
+
+		// For non-role-assignment transactions, map to role assignment checks
+		key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
+		roleNames, found := provider.managedRolesByTransaction[key]
+		if !found || len(roleNames) == 0 {
+			resultsByTxnID[txn.ID.StringValue()] = false
+			continue
+		}
+
+		// Check if the user has any of the matching roles
+		for _, roleName := range roleNames {
+			roleSelector := authtypes.MustNewSelector(authtypes.TypeRole, roleName)
+			roleTuples, err := authtypes.TypeableRole.Tuples(subject, authtypes.RelationAssignee, []authtypes.Selector{roleSelector}, orgID)
+			if err != nil {
+				return nil, err
+			}
+
+			tupleKey := txn.ID.StringValue() + ":" + roleName
+			tuples[tupleKey] = roleTuples[0]
+		}
+	}
+
+	if len(tuples) > 0 {
+		batchResults, err := provider.server.BatchCheck(ctx, tuples)
+		if err != nil {
+			return nil, err
+		}
+
+		// Merge batch results into resultsByTxnID
+		for _, txn := range transactions {
+			txnID := txn.ID.StringValue()
+			if _, alreadySet := resultsByTxnID[txnID]; alreadySet {
+				continue
+			}
+
+			if txn.Object.Resource.Type == authtypes.TypeRole && txn.Relation == authtypes.RelationAssignee {
+				result := batchResults[txnID]
+				resultsByTxnID[txnID] = result.Authorized
+				continue
+			}
+
+			key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
+			roleNames := provider.managedRolesByTransaction[key]
+			authorized := false
+			for _, roleName := range roleNames {
+				tupleKey := txnID + ":" + roleName
+				if result, exists := batchResults[tupleKey]; exists && result.Authorized {
+					authorized = true
+					break
+				}
+			}
+
+			resultsByTxnID[txnID] = authorized
+		}
+	}
+
+	output := make([]*authtypes.TransactionWithAuthorization, len(transactions))
+	for i, txn := range transactions {
+		output[i] = &authtypes.TransactionWithAuthorization{
+			Transaction: txn,
+			Authorized:  resultsByTxnID[txn.ID.StringValue()],
+		}
+	}
+
+	return output, nil
+}
+
+func buildManagedRolesByTransaction(registry []authz.RegisterTypeable) map[string][]string {
+	managedRolesByTransaction := make(map[string][]string)
+	for _, register := range registry {
+		for roleName, transactions := range register.MustGetManagedRoleTransactions() {
+			for _, txn := range transactions {
+				key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
+				managedRolesByTransaction[key] = append(managedRolesByTransaction[key], roleName)
+			}
+		}
+	}
+
+	return managedRolesByTransaction
 }
 
 func (provider *provider) MustGetTypeables() []authtypes.Typeable {
