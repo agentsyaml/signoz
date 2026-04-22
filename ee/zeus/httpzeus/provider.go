@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/SigNoz/signoz/pkg/errors"
 	"github.com/SigNoz/signoz/pkg/factory"
@@ -164,6 +165,34 @@ func (provider *Provider) PutMeterReadings(ctx context.Context, key string, idem
 	)
 
 	return err
+}
+
+// ! TODO: depends on Zeus shipping GET /v2/meters/latest-sealed. Until it
+// lands, this call will 404; the caller (meterreporter) treats the error as
+// "skip concern A this tick" so the today-partial path keeps flowing.
+func (provider *Provider) LatestSealed(ctx context.Context, key string) (*time.Time, error) {
+	response, err := provider.do(
+		ctx,
+		provider.config.URL.JoinPath("/v2/meters/latest-sealed"),
+		http.MethodGet,
+		key,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	dayValue := gjson.GetBytes(response, "data.day")
+	if !dayValue.Exists() || dayValue.Type == gjson.Null {
+		return nil, nil
+	}
+
+	day, err := time.Parse("2006-01-02", dayValue.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, errors.TypeInternal, zeus.ErrCodeResponseMalformed, "parse latest sealed day %q", dayValue.String())
+	}
+
+	return &day, nil
 }
 
 func (provider *Provider) PutProfile(ctx context.Context, key string, profile *zeustypes.PostableProfile) error {

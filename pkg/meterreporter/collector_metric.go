@@ -27,8 +27,8 @@ func CollectMetricDatapointCountMeter(ctx context.Context, deps CollectorDeps, m
 	sb.From(telemetrymeter.DBName + "." + telemetrymeter.SamplesTableName)
 	sb.Where(
 		sb.Equal("metric_name", MeterMetricDatapointCount.String()),
-		sb.GTE("unix_milli", window.StartMs),
-		sb.LT("unix_milli", window.EndMs),
+		sb.GTE("unix_milli", window.StartUnixMilli),
+		sb.LT("unix_milli", window.EndUnixMilli),
 	)
 	query, args := sb.BuildWithFlavor(sqlbuilder.ClickHouse)
 
@@ -52,11 +52,12 @@ func CollectMetricDatapointCountMeter(ctx context.Context, deps CollectorDeps, m
 	}
 
 	return []meterreportertypes.Reading{{
-		MeterName:   MeterMetricDatapointCount.String(),
-		Value:       value,
-		Timestamp:   window.StartMs,
-		IsCompleted: false,
-		Dimensions:  dimensions,
+		MeterName:      MeterMetricDatapointCount.String(),
+		Value:          value,
+		StartUnixMilli: window.StartUnixMilli,
+		EndUnixMilli:   window.EndUnixMilli,
+		IsCompleted:    window.IsCompleted,
+		Dimensions:     dimensions,
 	}}, nil
 }
 
@@ -72,8 +73,8 @@ func CollectMetricDatapointSizeMeter(ctx context.Context, deps CollectorDeps, me
 	sb.From(telemetrymeter.DBName + "." + telemetrymeter.SamplesTableName)
 	sb.Where(
 		sb.Equal("metric_name", MeterMetricDatapointSize.String()),
-		sb.GTE("unix_milli", window.StartMs),
-		sb.LT("unix_milli", window.EndMs),
+		sb.GTE("unix_milli", window.StartUnixMilli),
+		sb.LT("unix_milli", window.EndUnixMilli),
 	)
 	query, args := sb.BuildWithFlavor(sqlbuilder.ClickHouse)
 
@@ -97,10 +98,11 @@ func CollectMetricDatapointSizeMeter(ctx context.Context, deps CollectorDeps, me
 	}
 
 	return []meterreportertypes.Reading{{
-		MeterName:   MeterMetricDatapointSize.String(),
-		Value:       value,
-		Timestamp:   window.StartMs,
-		IsCompleted: false,
-		Dimensions:  dimensions,
+		MeterName:      MeterMetricDatapointSize.String(),
+		Value:          value,
+		StartUnixMilli: window.StartUnixMilli,
+		EndUnixMilli:   window.EndUnixMilli,
+		IsCompleted:    window.IsCompleted,
+		Dimensions:     dimensions,
 	}}, nil
 }

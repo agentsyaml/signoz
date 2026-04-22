@@ -9,12 +9,15 @@ import (
 	"github.com/SigNoz/signoz/pkg/valuer"
 )
 
-// Window is the time range a collector produces readings for. StartMs is the
-// filter lower bound *and* the emitted Reading.Timestamp — callers align it to
-// UTC day start so repeat ticks within the same day UPSERT cleanly at Zeus.
+// Window is the time range a collector produces readings for. StartUnixMilli
+// and EndUnixMilli define the [start, end) filter on the meter table and are
+// emitted verbatim on every Reading. IsCompleted is caller-declared: true for
+// a sealed past day (is_completed=true at Zeus), false for the intra-day open
+// window that the cron re-emits every tick.
 type Window struct {
-	StartMs int64
-	EndMs   int64
+	StartUnixMilli int64
+	EndUnixMilli   int64
+	IsCompleted    bool
 }
 
 // CollectorDeps is the shared dependency bag handed to every collector. Each

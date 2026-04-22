@@ -9,6 +9,13 @@ import (
 
 var _ factory.Config = (*Config)(nil)
 
+// HistoricalBackfillDays is the static floor used on first deploy (or for a
+// license with no sealed rows yet at Zeus): the orchestrator begins catch-up
+// from today - HistoricalBackfillDays. It mirrors the ClickHouse meter-table
+// TTL of 12 months — anything older has no backing data anyway, so it is not
+// exposed as a config field.
+const HistoricalBackfillDays = 365
+
 type Config struct {
 	// Provider picks the reporter implementation. "noop" is the default and is
 	// what community builds ship; "signoz" is the enterprise cron-based reporter.
@@ -20,8 +27,16 @@ type Config struct {
 	Interval time.Duration `mapstructure:"interval"`
 
 	// Timeout bounds a single tick (collect + marshal + POST). Must be strictly
-	// less than Interval so a slow tick can't overlap the next one.
+	// less than Interval so a slow tick can't overlap the next one. Catch-up
+	// ticks can issue up to CatchupMaxDaysPerTick day-scoped POSTs back-to-back,
+	// so the default is sized to cover that.
 	Timeout time.Duration `mapstructure:"timeout"`
+
+	// CatchupMaxDaysPerTick caps how many sealed (is_completed=true) days the
+	// orchestrator processes per tick, bounding Zeus POST blast radius. At the
+	// default 30/tick and a 6h Interval, a full 12-month bootstrap catch-up
+	// converges in roughly 3 days.
+	CatchupMaxDaysPerTick int `mapstructure:"catchup_max_days_per_tick"`
 
 	// Retry configures exponential backoff around the Zeus POST. Tick-level
 	// failures don't propagate — see runTick in the enterprise provider.
@@ -37,9 +52,10 @@ type RetryConfig struct {
 
 func newConfig() factory.Config {
 	return Config{
-		Provider: "noop",
-		Interval: 6 * time.Hour,
-		Timeout:  30 * time.Second,
+		Provider:              "noop",
+		Interval:              6 * time.Hour,
+		Timeout:               5 * time.Minute,
+		CatchupMaxDaysPerTick: 30,
 		Retry: RetryConfig{
 			Enabled:         true,
 			InitialInterval: 5 * time.Second,
@@ -58,12 +74,16 @@ func (c Config) Validate() error {
 		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::interval must be at least 5m")
 	}
 
-	if c.Timeout <= 0 {
-		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::timeout must be greater than 0")
+	if c.Timeout < 3*time.Minute {
+		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::timeout must be at least 3m")
 	}
 
 	if c.Timeout >= c.Interval {
 		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::timeout must be less than meterreporter::interval")
+	}
+
+	if c.CatchupMaxDaysPerTick > 60 {
+		return errors.New(errors.TypeInvalidInput, ErrCodeInvalidInput, "meterreporter::catchup_max_days_per_tick must be at most 60")
 	}
 
 	return nil

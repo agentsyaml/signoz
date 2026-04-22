@@ -29,8 +29,8 @@ func CollectLogCountMeter(ctx context.Context, deps CollectorDeps, meter Meter, 
 	sb.From(telemetrymeter.DBName + "." + telemetrymeter.SamplesTableName)
 	sb.Where(
 		sb.Equal("metric_name", MeterLogCount.String()),
-		sb.GTE("unix_milli", window.StartMs),
-		sb.LT("unix_milli", window.EndMs),
+		sb.GTE("unix_milli", window.StartUnixMilli),
+		sb.LT("unix_milli", window.EndUnixMilli),
 	)
 	query, args := sb.BuildWithFlavor(sqlbuilder.ClickHouse)
 
@@ -54,11 +54,12 @@ func CollectLogCountMeter(ctx context.Context, deps CollectorDeps, meter Meter, 
 	}
 
 	return []meterreportertypes.Reading{{
-		MeterName:   MeterLogCount.String(),
-		Value:       value,
-		Timestamp:   window.StartMs,
-		IsCompleted: false,
-		Dimensions:  dimensions,
+		MeterName:      MeterLogCount.String(),
+		Value:          value,
+		StartUnixMilli: window.StartUnixMilli,
+		EndUnixMilli:   window.EndUnixMilli,
+		IsCompleted:    window.IsCompleted,
+		Dimensions:     dimensions,
 	}}, nil
 }
 
@@ -74,8 +75,8 @@ func CollectLogSizeMeter(ctx context.Context, deps CollectorDeps, meter Meter, o
 	sb.From(telemetrymeter.DBName + "." + telemetrymeter.SamplesTableName)
 	sb.Where(
 		sb.Equal("metric_name", MeterLogSize.String()),
-		sb.GTE("unix_milli", window.StartMs),
-		sb.LT("unix_milli", window.EndMs),
+		sb.GTE("unix_milli", window.StartUnixMilli),
+		sb.LT("unix_milli", window.EndUnixMilli),
 	)
 	query, args := sb.BuildWithFlavor(sqlbuilder.ClickHouse)
 
@@ -99,10 +100,11 @@ func CollectLogSizeMeter(ctx context.Context, deps CollectorDeps, meter Meter, o
 	}
 
 	return []meterreportertypes.Reading{{
-		MeterName:   MeterLogSize.String(),
-		Value:       value,
-		Timestamp:   window.StartMs,
-		IsCompleted: false,
-		Dimensions:  dimensions,
+		MeterName:      MeterLogSize.String(),
+		Value:          value,
+		StartUnixMilli: window.StartUnixMilli,
+		EndUnixMilli:   window.EndUnixMilli,
+		IsCompleted:    window.IsCompleted,
+		Dimensions:     dimensions,
 	}}, nil
 }

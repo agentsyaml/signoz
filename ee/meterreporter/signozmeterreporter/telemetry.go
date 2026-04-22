@@ -6,12 +6,14 @@ import (
 )
 
 type reporterMetrics struct {
-	ticks           metric.Int64Counter
-	readingsEmitted metric.Int64Counter
-	collectErrors   metric.Int64Counter
-	postErrors      metric.Int64Counter
-	collectDuration metric.Float64Histogram
-	shipDuration    metric.Float64Histogram
+	ticks                metric.Int64Counter
+	readingsEmitted      metric.Int64Counter
+	collectErrors        metric.Int64Counter
+	postErrors           metric.Int64Counter
+	latestSealedErrors   metric.Int64Counter
+	catchupDaysProcessed metric.Int64Counter
+	collectDuration      metric.Float64Histogram
+	shipDuration         metric.Float64Histogram
 }
 
 func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
@@ -27,22 +29,32 @@ func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
 		errs = errors.Join(errs, err)
 	}
 
-	collectErrors, err := meter.Int64Counter("signoz.meterreporter.collect.errors", metric.WithDescription("Total number of collect errors across organizations and meters."))
+	collectErrors, err := meter.Int64Counter("signoz.meterreporter.collect.errors", metric.WithDescription("Total number of collect errors across organizations and meters, tagged with phase={sealed|today}."))
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
 
-	postErrors, err := meter.Int64Counter("signoz.meterreporter.post.errors", metric.WithDescription("Total number of Zeus POST failures."))
+	postErrors, err := meter.Int64Counter("signoz.meterreporter.post.errors", metric.WithDescription("Total number of Zeus POST failures, tagged with phase={sealed|today}."))
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
 
-	collectDuration, err := meter.Float64Histogram("signoz.meterreporter.collect.duration", metric.WithDescription("Time taken to collect readings from all registered meters in a single tick."), metric.WithUnit("s"))
+	latestSealedErrors, err := meter.Int64Counter("signoz.meterreporter.latestsealed.errors", metric.WithDescription("Total number of ticks skipped because the Zeus LatestSealed call failed."))
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
 
-	shipDuration, err := meter.Float64Histogram("signoz.meterreporter.ship.duration", metric.WithDescription("Time taken to ship (marshal + POST) collected readings to Zeus in a single tick."), metric.WithUnit("s"))
+	catchupDaysProcessed, err := meter.Int64Counter("signoz.meterreporter.catchup.days_processed", metric.WithDescription("Total number of sealed (is_completed=true) days the catch-up loop attempted to ship, tagged with result={success|failure}."))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+
+	collectDuration, err := meter.Float64Histogram("signoz.meterreporter.collect.duration", metric.WithDescription("Time taken to collect readings from all registered meters in a single phase of a tick, tagged with phase={sealed|today}."), metric.WithUnit("s"))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+
+	shipDuration, err := meter.Float64Histogram("signoz.meterreporter.ship.duration", metric.WithDescription("Time taken to ship (marshal + POST) collected readings to Zeus in a single phase of a tick, tagged with phase={sealed|today}."), metric.WithUnit("s"))
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
@@ -52,11 +64,13 @@ func newReporterMetrics(meter metric.Meter) (*reporterMetrics, error) {
 	}
 
 	return &reporterMetrics{
-		ticks:           ticks,
-		readingsEmitted: readingsEmitted,
-		collectErrors:   collectErrors,
-		postErrors:      postErrors,
-		collectDuration: collectDuration,
-		shipDuration:    shipDuration,
+		ticks:                ticks,
+		readingsEmitted:      readingsEmitted,
+		collectErrors:        collectErrors,
+		postErrors:           postErrors,
+		latestSealedErrors:   latestSealedErrors,
+		catchupDaysProcessed: catchupDaysProcessed,
+		collectDuration:      collectDuration,
+		shipDuration:         shipDuration,
 	}, nil
 }
