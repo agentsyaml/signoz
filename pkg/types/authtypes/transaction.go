@@ -49,12 +49,12 @@ func NewGettableTransaction(results []*TransactionWithAuthorization) []*Gettable
 // NewTransactionWithAuthorizationFromBatchResults merges batch check results into an ordered
 // slice of TransactionWithAuthorization matching the input transactions order.
 // preResolved contains txn IDs whose authorization was determined without BatchCheck.
-// managedRolesByTransaction is used to check if any role tuple was authorized for non-direct transactions.
+// roleCorrelations maps txn IDs to correlation IDs used for managed role checks.
 func NewTransactionWithAuthorizationFromBatchResults(
 	transactions []*Transaction,
 	batchResults map[string]*TupleKeyAuthorization,
 	preResolved map[string]bool,
-	managedRolesByTransaction map[string][]string,
+	roleCorrelations map[string][]string,
 ) []*TransactionWithAuthorization {
 	output := make([]*TransactionWithAuthorization, len(transactions))
 	for i, txn := range transactions {
@@ -76,10 +76,10 @@ func NewTransactionWithAuthorizationFromBatchResults(
 			continue
 		}
 
-		roleNames := managedRolesByTransaction[txn.TransactionKey()]
+		correlationIDs := roleCorrelations[txnID]
 		authorized := false
-		for _, roleName := range roleNames {
-			if result, exists := batchResults[txnID+":"+roleName]; exists && result.Authorized {
+		for _, correlationID := range correlationIDs {
+			if result, exists := batchResults[correlationID]; exists && result.Authorized {
 				authorized = true
 				break
 			}

@@ -44,29 +44,32 @@ func NewTuplesFromTransactionsWithManagedRoles(
 	subject string,
 	orgID valuer.UUID,
 	managedRolesByTransaction map[string][]string,
-) (tuples map[string]*openfgav1.TupleKey, preResolved map[string]bool, err error) {
+) (tuples map[string]*openfgav1.TupleKey, preResolved map[string]bool, roleCorrelations map[string][]string, err error) {
 	tuples = make(map[string]*openfgav1.TupleKey)
 	preResolved = make(map[string]bool)
+	roleCorrelations = make(map[string][]string)
 
 	for _, txn := range transactions {
+		txnID := txn.ID.StringValue()
+
 		if txn.Object.Resource.Type == TypeRole && txn.Relation == RelationAssignee {
 			typeable, err := NewTypeableFromType(txn.Object.Resource.Type, txn.Object.Resource.Name)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			txnTuples, err := typeable.Tuples(subject, txn.Relation, []Selector{txn.Object.Selector}, orgID)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
-			tuples[txn.ID.StringValue()] = txnTuples[0]
+			tuples[txnID] = txnTuples[0]
 			continue
 		}
 
 		roleNames, found := managedRolesByTransaction[txn.TransactionKey()]
 		if !found || len(roleNames) == 0 {
-			preResolved[txn.ID.StringValue()] = false
+			preResolved[txnID] = false
 			continue
 		}
 
@@ -74,12 +77,14 @@ func NewTuplesFromTransactionsWithManagedRoles(
 			roleSelector := MustNewSelector(TypeRole, roleName)
 			roleTuples, err := TypeableRole.Tuples(subject, RelationAssignee, []Selector{roleSelector}, orgID)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
-			tuples[txn.ID.StringValue()+":"+roleName] = roleTuples[0]
+			correlationID := valuer.GenerateUUID().StringValue()
+			tuples[correlationID] = roleTuples[0]
+			roleCorrelations[txnID] = append(roleCorrelations[txnID], correlationID)
 		}
 	}
 
-	return tuples, preResolved, nil
+	return tuples, preResolved, roleCorrelations, nil
 }

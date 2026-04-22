@@ -223,6 +223,144 @@ func (module *module) MustGetTypeables() []authtypes.Typeable {
 
 func (module *module) MustGetManagedRoleTransactions() map[string][]*authtypes.Transaction {
 	return map[string][]*authtypes.Transaction{
+		authtypes.SigNozAdminRoleName: {
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationCreate,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResources,
+						Name: dashboardtypes.TypeableMetaResourcesDashboards.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResources, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationList,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResources,
+						Name: dashboardtypes.TypeableMetaResourcesDashboards.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResources, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationRead,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationUpdate,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationDelete,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+		},
+		authtypes.SigNozEditorRoleName: {
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationCreate,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResources,
+						Name: dashboardtypes.TypeableMetaResourcesDashboards.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResources, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationList,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResources,
+						Name: dashboardtypes.TypeableMetaResourcesDashboards.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResources, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationRead,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationUpdate,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationDelete,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+		},
+		authtypes.SigNozViewerRoleName: {
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationList,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResources,
+						Name: dashboardtypes.TypeableMetaResourcesDashboards.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResources, "*"),
+				),
+			},
+			{
+				ID:       valuer.GenerateUUID(),
+				Relation: authtypes.RelationRead,
+				Object: *authtypes.MustNewObject(
+					authtypes.Resource{
+						Type: authtypes.TypeMetaResource,
+						Name: dashboardtypes.TypeableMetaResourceDashboard.Name(),
+					},
+					authtypes.MustNewSelector(authtypes.TypeMetaResource, "*"),
+				),
+			},
+		},
 		authtypes.SigNozAnonymousRoleName: {
 			{
 				ID:       valuer.GenerateUUID(),
