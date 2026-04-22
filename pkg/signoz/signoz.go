@@ -100,7 +100,7 @@ func New(
 	sqlstoreProviderFactories factory.NamedMap[factory.ProviderFactory[sqlstore.SQLStore, sqlstore.Config]],
 	telemetrystoreProviderFactories factory.NamedMap[factory.ProviderFactory[telemetrystore.TelemetryStore, telemetrystore.Config]],
 	authNsCallback func(ctx context.Context, providerSettings factory.ProviderSettings, store authtypes.AuthNStore, licensing licensing.Licensing) (map[authtypes.AuthNProvider]authn.AuthN, error),
-	authzCallback func(context.Context, sqlstore.SQLStore, licensing.Licensing, dashboard.Module) (factory.ProviderFactory[authz.AuthZ, authz.Config], error),
+	authzCallback func(context.Context, sqlstore.SQLStore, licensing.Licensing, ...authz.RegisterTypeable) (factory.ProviderFactory[authz.AuthZ, authz.Config], error),
 	dashboardModuleCallback func(sqlstore.SQLStore, factory.ProviderSettings, analytics.Analytics, organization.Getter, queryparser.QueryParser, querier.Querier, licensing.Licensing) dashboard.Module,
 	gatewayProviderFactory func(licensing.Licensing) factory.ProviderFactory[gateway.Gateway, gateway.Config],
 	auditorProviderFactories func(licensing.Licensing) factory.NamedMap[factory.ProviderFactory[auditor.Auditor, auditor.Config]],
@@ -328,8 +328,11 @@ func New(
 	// Initialize dashboard module (needed for authz registry)
 	dashboard := dashboardModuleCallback(sqlstore, providerSettings, analytics, orgGetter, queryParser, querier, licensing)
 
+	// Initialize service account typeable registry (decoupled from module lifecycle for DI)
+	serviceAccountRegistry := implserviceaccount.NewTypeableRegistry()
+
 	// Initialize authz
-	authzProviderFactory, err := authzCallback(ctx, sqlstore, licensing, dashboard)
+	authzProviderFactory, err := authzCallback(ctx, sqlstore, licensing, dashboard, serviceAccountRegistry)
 	if err != nil {
 		return nil, err
 	}

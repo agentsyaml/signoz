@@ -27,6 +27,11 @@ var (
 )
 
 var (
+	TypeableMetaResourceServiceAccount   = authtypes.MustNewTypeableMetaResource(authtypes.MustNewName("service-account"))
+	TypeableMetaResourcesServiceAccounts = authtypes.MustNewTypeableMetaResources(authtypes.MustNewName("service-accounts"))
+)
+
+var (
 	ServiceAccountStatusActive  = ServiceAccountStatus{valuer.NewString("active")}
 	ServiceAccountStatusDeleted = ServiceAccountStatus{valuer.NewString("deleted")}
 )

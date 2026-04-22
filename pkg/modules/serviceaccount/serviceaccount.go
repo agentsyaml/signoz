@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SigNoz/signoz/pkg/authz"
 	"github.com/SigNoz/signoz/pkg/statsreporter"
 	"github.com/SigNoz/signoz/pkg/types/authtypes"
 	"github.com/SigNoz/signoz/pkg/types/serviceaccounttypes"
@@ -69,6 +70,8 @@ type Module interface {
 	Config() Config
 
 	statsreporter.StatsCollector
+
+	authz.RegisterTypeable
 }
 
 type Handler interface {

@@ -10,8 +10,34 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var (
+	serviceAccountAdminRoles = []string{
+		authtypes.SigNozAdminRoleName,
+	}
+	serviceAccountReadRoles = []string{
+		authtypes.SigNozAdminRoleName,
+		authtypes.SigNozEditorRoleName,
+		authtypes.SigNozViewerRoleName,
+	}
+)
+
+func serviceAccountCollectionSelectorCallback(_ *http.Request, _ authtypes.Claims) ([]authtypes.Selector, error) {
+	return []authtypes.Selector{
+		authtypes.MustNewSelector(authtypes.TypeMetaResources, authtypes.WildCardSelectorString),
+	}, nil
+}
+
+func serviceAccountInstanceSelectorCallback(req *http.Request, _ authtypes.Claims) ([]authtypes.Selector, error) {
+	id := mux.Vars(req)["id"]
+	return []authtypes.Selector{
+		authtypes.MustNewSelector(authtypes.TypeMetaResource, id),
+		authtypes.MustNewSelector(authtypes.TypeMetaResource, authtypes.WildCardSelectorString),
+	}, nil
+}
+
 func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
-	if err := router.Handle("/api/v1/service_accounts", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.Create), handler.OpenAPIDef{
+	// POST /api/v1/service_accounts — Create (admin only)
+	if err := router.Handle("/api/v1/service_accounts", handler.New(provider.authZ.Check(provider.serviceAccountHandler.Create, authtypes.RelationCreate, serviceaccounttypes.TypeableMetaResourcesServiceAccounts, serviceAccountCollectionSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "CreateServiceAccount",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Create service account",
@@ -28,7 +54,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.List), handler.OpenAPIDef{
+	// GET /api/v1/service_accounts — List (admin, editor, viewer)
+	if err := router.Handle("/api/v1/service_accounts", handler.New(provider.authZ.Check(provider.serviceAccountHandler.List, authtypes.RelationList, serviceaccounttypes.TypeableMetaResourcesServiceAccounts, serviceAccountCollectionSelectorCallback, serviceAccountReadRoles), handler.OpenAPIDef{
 		ID:                  "ListServiceAccounts",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "List service accounts",
@@ -40,11 +67,12 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		SuccessStatusCode:   http.StatusOK,
 		ErrorStatusCodes:    []int{},
 		Deprecated:          false,
-		SecuritySchemes:     newSecuritySchemes(types.RoleAdmin),
+		SecuritySchemes:     newSecuritySchemes(types.RoleViewer),
 	})).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
 
+	// GET /api/v1/service_accounts/me — GetMe (open access, self)
 	if err := router.Handle("/api/v1/service_accounts/me", handler.New(provider.authZ.OpenAccess(provider.serviceAccountHandler.GetMe), handler.OpenAPIDef{
 		ID:                  "GetMyServiceAccount",
 		Tags:                []string{"serviceaccount"},
@@ -62,7 +90,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.Get), handler.OpenAPIDef{
+	// GET /api/v1/service_accounts/{id} — Get (admin, editor, viewer)
+	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.Get, authtypes.RelationRead, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountReadRoles), handler.OpenAPIDef{
 		ID:                  "GetServiceAccount",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Gets a service account",
@@ -74,12 +103,13 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		SuccessStatusCode:   http.StatusOK,
 		ErrorStatusCodes:    []int{http.StatusNotFound},
 		Deprecated:          false,
-		SecuritySchemes:     newSecuritySchemes(types.RoleAdmin),
+		SecuritySchemes:     newSecuritySchemes(types.RoleViewer),
 	})).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/roles", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.GetRoles), handler.OpenAPIDef{
+	// GET /api/v1/service_accounts/{id}/roles — GetRoles (admin, editor, viewer)
+	if err := router.Handle("/api/v1/service_accounts/{id}/roles", handler.New(provider.authZ.Check(provider.serviceAccountHandler.GetRoles, authtypes.RelationRead, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountReadRoles), handler.OpenAPIDef{
 		ID:                  "GetServiceAccountRoles",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Gets service account roles",
@@ -91,12 +121,13 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		SuccessStatusCode:   http.StatusOK,
 		ErrorStatusCodes:    []int{http.StatusNotFound},
 		Deprecated:          false,
-		SecuritySchemes:     newSecuritySchemes(types.RoleAdmin),
+		SecuritySchemes:     newSecuritySchemes(types.RoleViewer),
 	})).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/roles", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.SetRole), handler.OpenAPIDef{
+	// POST /api/v1/service_accounts/{id}/roles — SetRole (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}/roles", handler.New(provider.authZ.Check(provider.serviceAccountHandler.SetRole, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "CreateServiceAccountRole",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Create service account role",
@@ -113,7 +144,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/roles/{rid}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.DeleteRole), handler.OpenAPIDef{
+	// DELETE /api/v1/service_accounts/{id}/roles/{rid} — DeleteRole (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}/roles/{rid}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.DeleteRole, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "DeleteServiceAccountRole",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Delete service account role",
@@ -130,6 +162,7 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
+	// PUT /api/v1/service_accounts/me — UpdateMe (open access, self)
 	if err := router.Handle("/api/v1/service_accounts/me", handler.New(provider.authZ.OpenAccess(provider.serviceAccountHandler.UpdateMe), handler.OpenAPIDef{
 		ID:                  "UpdateMyServiceAccount",
 		Tags:                []string{"serviceaccount"},
@@ -147,7 +180,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.Update), handler.OpenAPIDef{
+	// PUT /api/v1/service_accounts/{id} — Update (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.Update, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "UpdateServiceAccount",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Updates a service account",
@@ -164,7 +198,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.Delete), handler.OpenAPIDef{
+	// DELETE /api/v1/service_accounts/{id} — Delete (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.Delete, authtypes.RelationDelete, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "DeleteServiceAccount",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Deletes a service account",
@@ -181,7 +216,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/keys", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.CreateFactorAPIKey), handler.OpenAPIDef{
+	// POST /api/v1/service_accounts/{id}/keys — CreateFactorAPIKey (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}/keys", handler.New(provider.authZ.Check(provider.serviceAccountHandler.CreateFactorAPIKey, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "CreateServiceAccountKey",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Create a service account key",
@@ -198,7 +234,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/keys", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.ListFactorAPIKey), handler.OpenAPIDef{
+	// GET /api/v1/service_accounts/{id}/keys — ListFactorAPIKey (admin, editor, viewer)
+	if err := router.Handle("/api/v1/service_accounts/{id}/keys", handler.New(provider.authZ.Check(provider.serviceAccountHandler.ListFactorAPIKey, authtypes.RelationRead, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountReadRoles), handler.OpenAPIDef{
 		ID:                  "ListServiceAccountKeys",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "List service account keys",
@@ -210,12 +247,13 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		SuccessStatusCode:   http.StatusOK,
 		ErrorStatusCodes:    []int{},
 		Deprecated:          false,
-		SecuritySchemes:     newSecuritySchemes(types.RoleAdmin),
+		SecuritySchemes:     newSecuritySchemes(types.RoleViewer),
 	})).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/keys/{fid}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.UpdateFactorAPIKey), handler.OpenAPIDef{
+	// PUT /api/v1/service_accounts/{id}/keys/{fid} — UpdateFactorAPIKey (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}/keys/{fid}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.UpdateFactorAPIKey, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "UpdateServiceAccountKey",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Updates a service account key",
@@ -232,7 +270,8 @@ func (provider *provider) addServiceAccountRoutes(router *mux.Router) error {
 		return err
 	}
 
-	if err := router.Handle("/api/v1/service_accounts/{id}/keys/{fid}", handler.New(provider.authZ.AdminAccess(provider.serviceAccountHandler.RevokeFactorAPIKey), handler.OpenAPIDef{
+	// DELETE /api/v1/service_accounts/{id}/keys/{fid} — RevokeFactorAPIKey (admin only)
+	if err := router.Handle("/api/v1/service_accounts/{id}/keys/{fid}", handler.New(provider.authZ.Check(provider.serviceAccountHandler.RevokeFactorAPIKey, authtypes.RelationUpdate, serviceaccounttypes.TypeableMetaResourceServiceAccount, serviceAccountInstanceSelectorCallback, serviceAccountAdminRoles), handler.OpenAPIDef{
 		ID:                  "RevokeServiceAccountKey",
 		Tags:                []string{"serviceaccount"},
 		Summary:             "Revoke a service account key",
