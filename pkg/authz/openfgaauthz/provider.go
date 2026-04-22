@@ -256,90 +256,27 @@ func (provider *provider) CheckTransactions(ctx context.Context, subject string,
 		return make([]*authtypes.TransactionWithAuthorization, 0), nil
 	}
 
-	resultsByTxnID := make(map[string]bool, len(transactions))
-	tuples := make(map[string]*openfgav1.TupleKey)
-
-	for _, txn := range transactions {
-		if txn.Object.Resource.Type == authtypes.TypeRole && txn.Relation == authtypes.RelationAssignee {
-			// Role assignment transactions are checked directly as tuples
-			typeable, err := authtypes.NewTypeableFromType(txn.Object.Resource.Type, txn.Object.Resource.Name)
-			if err != nil {
-				return nil, err
-			}
-
-			txnTuples, err := typeable.Tuples(subject, txn.Relation, []authtypes.Selector{txn.Object.Selector}, orgID)
-			if err != nil {
-				return nil, err
-			}
-
-			tuples[txn.ID.StringValue()] = txnTuples[0]
-			continue
-		}
-
-		// For non-role-assignment transactions, map to role assignment checks
-		key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
-		roleNames, found := provider.managedRolesByTransaction[key]
-		if !found || len(roleNames) == 0 {
-			resultsByTxnID[txn.ID.StringValue()] = false
-			continue
-		}
-
-		// Check if the user has any of the matching roles
-		for _, roleName := range roleNames {
-			roleSelector := authtypes.MustNewSelector(authtypes.TypeRole, roleName)
-			roleTuples, err := authtypes.TypeableRole.Tuples(subject, authtypes.RelationAssignee, []authtypes.Selector{roleSelector}, orgID)
-			if err != nil {
-				return nil, err
-			}
-
-			tupleKey := txn.ID.StringValue() + ":" + roleName
-			tuples[tupleKey] = roleTuples[0]
-		}
+	tuples, preResolved, err := authtypes.NewTuplesFromTransactionsWithManagedRoles(
+		transactions, subject, orgID, provider.managedRolesByTransaction,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(tuples) > 0 {
-		batchResults, err := provider.server.BatchCheck(ctx, tuples)
-		if err != nil {
-			return nil, err
-		}
-
-		// Merge batch results into resultsByTxnID
-		for _, txn := range transactions {
-			txnID := txn.ID.StringValue()
-			if _, alreadySet := resultsByTxnID[txnID]; alreadySet {
-				continue
-			}
-
-			if txn.Object.Resource.Type == authtypes.TypeRole && txn.Relation == authtypes.RelationAssignee {
-				result := batchResults[txnID]
-				resultsByTxnID[txnID] = result.Authorized
-				continue
-			}
-
-			key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
-			roleNames := provider.managedRolesByTransaction[key]
-			authorized := false
-			for _, roleName := range roleNames {
-				tupleKey := txnID + ":" + roleName
-				if result, exists := batchResults[tupleKey]; exists && result.Authorized {
-					authorized = true
-					break
-				}
-			}
-
-			resultsByTxnID[txnID] = authorized
-		}
+	if len(tuples) == 0 {
+		return authtypes.NewTransactionWithAuthorizationFromBatchResults(
+			transactions, nil, preResolved, provider.managedRolesByTransaction,
+		), nil
 	}
 
-	output := make([]*authtypes.TransactionWithAuthorization, len(transactions))
-	for i, txn := range transactions {
-		output[i] = &authtypes.TransactionWithAuthorization{
-			Transaction: txn,
-			Authorized:  resultsByTxnID[txn.ID.StringValue()],
-		}
+	batchResults, err := provider.server.BatchCheck(ctx, tuples)
+	if err != nil {
+		return nil, err
 	}
 
-	return output, nil
+	return authtypes.NewTransactionWithAuthorizationFromBatchResults(
+		transactions, batchResults, preResolved, provider.managedRolesByTransaction,
+	), nil
 }
 
 func buildManagedRolesByTransaction(registry []authz.RegisterTypeable) map[string][]string {
@@ -347,7 +284,7 @@ func buildManagedRolesByTransaction(registry []authz.RegisterTypeable) map[strin
 	for _, register := range registry {
 		for roleName, transactions := range register.MustGetManagedRoleTransactions() {
 			for _, txn := range transactions {
-				key := txn.Relation.StringValue() + ":" + txn.Object.Resource.Type.StringValue() + ":" + txn.Object.Resource.Name.String()
+				key := txn.TransactionKey()
 				managedRolesByTransaction[key] = append(managedRolesByTransaction[key], roleName)
 			}
 		}

@@ -46,6 +46,54 @@ func NewGettableTransaction(results []*TransactionWithAuthorization) []*Gettable
 	return gettableTransactions
 }
 
+// NewTransactionWithAuthorizationFromBatchResults merges batch check results into an ordered
+// slice of TransactionWithAuthorization matching the input transactions order.
+// preResolved contains txn IDs whose authorization was determined without BatchCheck.
+// managedRolesByTransaction is used to check if any role tuple was authorized for non-direct transactions.
+func NewTransactionWithAuthorizationFromBatchResults(
+	transactions []*Transaction,
+	batchResults map[string]*TupleKeyAuthorization,
+	preResolved map[string]bool,
+	managedRolesByTransaction map[string][]string,
+) []*TransactionWithAuthorization {
+	output := make([]*TransactionWithAuthorization, len(transactions))
+	for i, txn := range transactions {
+		txnID := txn.ID.StringValue()
+
+		if authorized, ok := preResolved[txnID]; ok {
+			output[i] = &TransactionWithAuthorization{
+				Transaction: txn,
+				Authorized:  authorized,
+			}
+			continue
+		}
+
+		if txn.Object.Resource.Type == TypeRole && txn.Relation == RelationAssignee {
+			output[i] = &TransactionWithAuthorization{
+				Transaction: txn,
+				Authorized:  batchResults[txnID].Authorized,
+			}
+			continue
+		}
+
+		roleNames := managedRolesByTransaction[txn.TransactionKey()]
+		authorized := false
+		for _, roleName := range roleNames {
+			if result, exists := batchResults[txnID+":"+roleName]; exists && result.Authorized {
+				authorized = true
+				break
+			}
+		}
+
+		output[i] = &TransactionWithAuthorization{
+			Transaction: txn,
+			Authorized:  authorized,
+		}
+	}
+
+	return output
+}
+
 func (transaction *Transaction) UnmarshalJSON(data []byte) error {
 	var shadow = struct {
 		Relation Relation
