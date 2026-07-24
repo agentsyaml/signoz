@@ -3,6 +3,15 @@
 .env.sentry-build-plugin
 .qodo
 
+# Yarn Berry: zero-installs disabled, ignore generated artifacts
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
 # Playwright
 node_modules/
 /test-results/

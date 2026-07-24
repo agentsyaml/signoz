@@ -18,6 +18,12 @@ export interface EventV3 {
 	isError: boolean;
 }
 
+export interface SpanReferenceV3 {
+	traceId: string;
+	spanId: string;
+	refType: string;
+}
+
 // V3 span — snake_case fields matching the API response directly.
 // 'service.name' is the only derived field, computed once in getTraceV3.tsx.
 export interface SpanV3 {
@@ -49,6 +55,7 @@ export interface SpanV3 {
 	has_sibling: boolean;
 	sub_tree_node_count: number;
 	level: number;
+	references?: SpanReferenceV3[];
 
 	// Attributes & Resources
 	attributes: Record<string, any>;

@@ -1,0 +1,9 @@
+{
+	"openinference.span.kind": "PROMPT",
+	"llm.prompt_template.template": "Hello, {{name}}!",
+	"llm.prompt_template.variables": "{\"name\":\"Ada\"}",
+	"llm.prompt_template.version": "v3",
+	"input.value": "{\"name\":\"Ada\"}",
+	"input.mime_type": "application/json",
+	"output.value": "Hello, Ada!"
+}

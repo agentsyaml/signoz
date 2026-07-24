@@ -1,3 +1,48 @@
+## 本 Fork 的自定义构建说明
+
+本仓库在 SigNoz 官方代码基础上新增了 **LLM 对话渲染 Tab** 功能，通过 `Dockerfile.frontend` 替换前端静态文件，后端沿用官方预构建镜像。
+
+### 构建镜像
+
+多架构构建需使用 `docker buildx`，并将镜像推送至 registry（`--push`）或导出为 OCI 包（`--output type=oci`）；不支持直接 `--load` 到本地 daemon。
+
+**社区版（默认，MIT 许可证，无任何使用限制）：**
+
+```bash
+# 单架构（本机，仅本地使用）
+docker build -f Dockerfile.frontend -t my-signoz:community .
+
+# 多架构（推送至 registry）
+docker buildx build -f Dockerfile.frontend \
+  --platform linux/amd64,linux/arm64 \
+  -t <your-registry>/my-signoz:community \
+  --push .
+```
+
+**企业版（⚠️ 生产环境使用需持有有效的 SigNoz Enterprise License）：**
+
+```bash
+# 单架构（本机，仅本地使用）
+docker build -f Dockerfile.frontend \
+  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.134.0 \
+  -t my-signoz:enterprise .
+
+# 多架构（推送至 registry）
+docker buildx build -f Dockerfile.frontend \
+  --platform linux/amd64,linux/arm64 \
+  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.134.0 \
+  -t <your-registry>/my-signoz:enterprise \
+  --push .
+```
+
+> ℹ️ **基础镜像版本**：默认 pin 至上游 `v0.134.0`（社区版同样 pin），保证构建可重现。升级上游时需同步修改 `Dockerfile.frontend` 中的 `SIGNOZ_BASE_IMAGE` 默认 tag。
+
+📖 **Fork 维护文档**：上游同步流程、Yarn Berry 迁移说明、已知问题等详见 [`docs/fork-maintenance.md`](./docs/fork-maintenance.md)。
+
+> ⚠️ **企业版授权声明**：`signoz/signoz` 镜像受 [SigNoz 企业版专有许可证](https://github.com/SigNoz/signoz/blob/main/ee/LICENSE) 约束。在生产环境中使用企业版镜像，须持有 SigNoz 颁发的有效企业授权。如需申请，请联系 [hello@signoz.io](mailto:hello@signoz.io)。社区版镜像（`signoz/signoz-community`）使用 MIT 许可证，无此限制。
+
+---
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme-assets/signoz-hero-dark.png" width="900">
