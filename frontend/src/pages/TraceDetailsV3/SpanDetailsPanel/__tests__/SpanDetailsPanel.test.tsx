@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ROUTES from 'constants/routes';
@@ -59,6 +60,12 @@ jest.mock('container/LogDetailedView/InfraMetrics/InfraMetrics', () => ({
 	__esModule: true,
 	default: (): JSX.Element => <div data-testid="metrics-tab" />,
 }));
+jest.mock(
+	'container/SpanDetailsDrawer/LLMConversation/LLMConversation',
+	() => ({
+		LLMConversationView: (): JSX.Element => <div data-testid="ai-tab" />,
+	}),
+);
 
 // Hooks with stores / API / side effects.
 jest.mock('../SpanLogs/useSpanContextLogs', () => ({
@@ -163,6 +170,86 @@ describe('SpanDetailsPanel – tabs', () => {
 
 		await user.click(screen.getByRole('tab', { name: /logs/i }));
 		expect(screen.getByTestId('logs-tab')).toBeInTheDocument();
+	});
+
+	it('returns to Overview when the selected span no longer has the AI tab', async () => {
+		const user = userEvent.setup({ delay: null });
+		mockWidth = 400;
+		const Harness = (): JSX.Element => {
+			const [span, setSpan] = useState<SpanV3>({
+				...createMockSpan(),
+				attributes: { 'openinference.span.kind': 'LLM' },
+			});
+			return (
+				<>
+					<button type="button" onClick={(): void => setSpan(createMockSpan())}>
+						Select non-AI span
+					</button>
+					<SpanDetailsPanel
+						panelState={panelState}
+						selectedSpan={span}
+						variant={SpanDetailVariant.DOCKED}
+						traceStartTime={1}
+						traceEndTime={101}
+					/>
+				</>
+			);
+		};
+		render(<Harness />);
+
+		await user.click(screen.getByRole('tab', { name: 'AI' }));
+		expect(screen.getByTestId('ai-tab')).toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: 'Select non-AI span' }));
+
+		expect(screen.queryByRole('tab', { name: 'AI' })).not.toBeInTheDocument();
+		expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute(
+			'aria-selected',
+			'true',
+		);
+		expect(screen.getByTestId('overview-content')).toBeInTheDocument();
+	});
+
+	it('immediately returns to Overview when the selected span no longer has Metrics', async () => {
+		const user = userEvent.setup({ delay: null });
+		mockWidth = 400;
+		const Harness = (): JSX.Element => {
+			const [span, setSpan] = useState<SpanV3>({
+				...createMockSpan(),
+				resource: { 'host.name': 'host-1' },
+			});
+			return (
+				<>
+					<button type="button" onClick={(): void => setSpan(createMockSpan())}>
+						Select span without Metrics
+					</button>
+					<SpanDetailsPanel
+						panelState={panelState}
+						selectedSpan={span}
+						variant={SpanDetailVariant.DOCKED}
+						traceStartTime={1}
+						traceEndTime={101}
+					/>
+				</>
+			);
+		};
+		render(<Harness />);
+
+		await user.click(screen.getByRole('tab', { name: /metrics/i }));
+		expect(screen.getByTestId('metrics-tab')).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole('button', { name: 'Select span without Metrics' }),
+		);
+
+		expect(
+			screen.queryByRole('tab', { name: /metrics/i }),
+		).not.toBeInTheDocument();
+		expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute(
+			'aria-selected',
+			'true',
+		);
+		expect(screen.getByTestId('overview-content')).toBeInTheDocument();
 	});
 });
 

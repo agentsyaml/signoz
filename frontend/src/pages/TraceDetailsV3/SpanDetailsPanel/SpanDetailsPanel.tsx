@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@signozhq/ui/badge';
 import {
 	TabsContent,
@@ -6,7 +6,13 @@ import {
 	TabsRoot,
 	TabsTrigger,
 } from '@signozhq/ui/tabs';
-import { Bookmark, ChartColumnBig, List, ScrollText } from '@signozhq/icons';
+import {
+	Bookmark,
+	ChartColumnBig,
+	List,
+	MessageSquare,
+	ScrollText,
+} from '@signozhq/icons';
 import { Skeleton } from 'antd';
 import { DetailsHeader, DetailsPanelDrawer } from 'components/DetailsPanel';
 import { HeaderAction } from 'components/DetailsPanel/DetailsHeader/DetailsHeader';
@@ -19,6 +25,8 @@ import {
 import ROUTES from 'constants/routes';
 import InfraMetrics from 'container/LogDetailedView/InfraMetrics/InfraMetrics';
 import { getEmptyLogsListConfig } from 'container/LogsExplorerList/utils';
+import { isAISpan } from 'container/SpanDetailsDrawer/LLMConversation/adapters/spanKind';
+import { LLMConversationView } from 'container/SpanDetailsDrawer/LLMConversation/LLMConversation';
 import dayjs from 'dayjs';
 import {
 	TraceDetailEventKeys,
@@ -97,7 +105,6 @@ function SpanDetailsContent({
 		},
 		[logTraceEvent, selectedSpan.span_id],
 	);
-
 	// One-time conversion of any V2-format value still living in the
 	// `span_details_pinned_attributes` user pref into V3 nested-path format.
 	useMigratePinnedAttributes(selectedSpan);
@@ -108,6 +115,24 @@ function SpanDetailsContent({
 		() => getSpanDisplayData(selectedSpan),
 		[selectedSpan],
 	);
+
+	const llmTagMap = useMemo<Record<string, string>>(() => {
+		const coerce = (value: unknown): string =>
+			typeof value === 'string' ? value : (JSON.stringify(value) ?? '');
+		const tags: Record<string, string> = {};
+		Object.entries(selectedSpan.resource ?? {}).forEach(([key, value]) => {
+			if (value != null) {
+				tags[key] = coerce(value);
+			}
+		});
+		Object.entries(selectedSpan.attributes ?? {}).forEach(([key, value]) => {
+			if (value != null) {
+				tags[key] = coerce(value);
+			}
+		});
+		return tags;
+	}, [selectedSpan]);
+	const isAI = useMemo(() => isAISpan(llmTagMap), [llmTagMap]);
 
 	// Map span attribute actions to PrettyView actions format.
 	// Use the last key in fieldKeyPath (the actual attribute key), not the full display path.
@@ -200,6 +225,16 @@ function SpanDetailsContent({
 			spanTimestamp: dayjs(selectedSpan.timestamp).format(),
 		};
 	}, [selectedSpan]);
+	const effectiveTab =
+		(activeTab === 'metrics' && !infraMetadata) ||
+		(activeTab === 'llm-conversation' && !isAI)
+			? 'overview'
+			: activeTab;
+	useEffect(() => {
+		if (effectiveTab !== activeTab) {
+			setActiveTab(effectiveTab);
+		}
+	}, [activeTab, effectiveTab]);
 
 	const handleExplorerPageRedirect = useCallback((): void => {
 		const startTimeMs = (traceStartTime || 0) - FIVE_MINUTES_IN_MS;
@@ -294,7 +329,7 @@ function SpanDetailsContent({
 
 				<div className={styles.tabsSection}>
 					{/* Step 9: ContentTabs */}
-					<TabsRoot defaultValue="overview" onValueChange={handleTabChange}>
+					<TabsRoot value={effectiveTab} onValueChange={handleTabChange}>
 						<TabsList variant="secondary">
 							<TabsTrigger value="overview" variant="secondary">
 								<Bookmark size={14} /> Overview
@@ -313,6 +348,11 @@ function SpanDetailsContent({
 							{infraMetadata && (
 								<TabsTrigger value="metrics" variant="secondary">
 									<ChartColumnBig size={14} /> Metrics
+								</TabsTrigger>
+							)}
+							{isAI && (
+								<TabsTrigger value="llm-conversation" variant="secondary">
+									<MessageSquare size={14} /> AI
 								</TabsTrigger>
 							)}
 						</TabsList>
@@ -365,6 +405,15 @@ function SpanDetailsContent({
 										hostName={infraMetadata.hostName}
 										timestamp={infraMetadata.spanTimestamp}
 										dataSource={DataSource.TRACES}
+									/>
+								</TabsContent>
+							)}
+							{isAI && (
+								<TabsContent value="llm-conversation">
+									<LLMConversationView
+										tagMap={llmTagMap}
+										events={selectedSpan.events}
+										spanId={selectedSpan.span_id}
 									/>
 								</TabsContent>
 							)}

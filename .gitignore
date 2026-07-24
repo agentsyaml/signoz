@@ -233,3 +233,6 @@ pyrightconfig.json
 .dev/
 .claude/worktrees/
 .claude/settings.local.json
+
+# OpenCode deepwork progress
+.slim/deepwork/

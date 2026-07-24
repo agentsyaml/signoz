@@ -193,6 +193,27 @@ export default defineConfig(({ mode }): UserConfig => {
 			open: true,
 			port: 3301,
 			host: true,
+			proxy: env.VITE_PROXY_TARGET
+				? {
+						'/api': {
+							target: env.VITE_PROXY_TARGET,
+							changeOrigin: true,
+							secure: true,
+							cookieDomainRewrite: 'localhost',
+						},
+						'/ws': {
+							target: env.VITE_PROXY_TARGET,
+							changeOrigin: true,
+							secure: true,
+							ws: true,
+						},
+						'/health': {
+							target: env.VITE_PROXY_TARGET,
+							changeOrigin: true,
+							secure: true,
+						},
+					}
+				: undefined,
 		},
 		preview: {
 			port: 3301,

@@ -8,7 +8,24 @@ sample-apps
 
 # frontend
 **/node_modules
+frontend/build
+frontend/coverage
+frontend/.yarn/cache
+frontend/.yarn/install-state.gz
+frontend/.yarn/unplugged
+frontend/.yarn/build-state.yml
+frontend/.pnp.*
 
 # local env files (tracked example.env templates are unaffected)
 **/.env
 **/.env.*
+
+# editor / OS
+.idea
+.DS_Store
+*.swp
+*.log
+
+# tests / docs build artifacts
+coverage
+docs/_site
