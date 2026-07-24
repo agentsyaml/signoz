@@ -1,0 +1,11 @@
+{
+	"openinference.span.kind": "AGENT",
+	"gen_ai.agent.id": "agent_1234567890abcdef",
+	"gen_ai.agent.name": "support_agent",
+	"gen_ai.agent.description": "Routes support requests and prepares responses.",
+	"gen_ai.system_instructions": "You are a support orchestration agent.",
+	"input.value": "{\"ticket\":\"reset password\"}",
+	"input.mime_type": "application/json",
+	"output.value": "{\"status\":\"delegated\"}",
+	"output.mime_type": "application/json"
+}

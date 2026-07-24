@@ -14,8 +14,7 @@ interface SpanReference {
 }
 
 interface LinkedSpansProps {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	references: any;
+	references: unknown;
 }
 
 interface LinkedSpansState {
@@ -25,13 +24,35 @@ interface LinkedSpansState {
 	toggleOpen: () => void;
 }
 
-export function useLinkedSpans(references: any): LinkedSpansState {
+function isSpanReference(value: unknown): value is SpanReference {
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+
+	const candidate = value as Record<string, unknown>;
+
+	return (
+		typeof candidate.traceId === 'string' &&
+		typeof candidate.spanId === 'string' &&
+		typeof candidate.refType === 'string'
+	);
+}
+
+function getLinkedSpanReferences(references: unknown): SpanReference[] {
+	if (!Array.isArray(references)) {
+		return [];
+	}
+
+	return references.filter(isSpanReference);
+}
+
+export function useLinkedSpans(references: unknown): LinkedSpansState {
 	const [isOpen, setIsOpen] = useState(false);
 
 	const linkedSpans: SpanReference[] = useMemo(
 		() =>
-			(references || []).filter(
-				(ref: SpanReference) => ref.refType !== 'CHILD_OF',
+			getLinkedSpanReferences(references).filter(
+				(ref) => ref.refType !== 'CHILD_OF',
 			),
 		[references],
 	);
