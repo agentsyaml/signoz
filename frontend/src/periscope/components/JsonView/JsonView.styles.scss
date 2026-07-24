@@ -4,6 +4,17 @@
 	flex: 1;
 	min-height: 0;
 	overflow: hidden;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+
+	// Monaco has no intrinsic width; pin it to the (now definite-width)
+	// container so it can't collapse to a narrow sliver.
+	.monaco-editor,
+	.monaco-editor .overflow-guard {
+		width: 100% !important;
+		max-width: 100%;
+	}
 
 	&__footer {
 		flex-shrink: 0;
@@ -18,5 +29,51 @@
 		gap: 8px;
 		margin-left: 12px;
 		align-items: center;
+	}
+
+	// Pin a sans-serif font for the footer label regardless of the embedding
+	// context's font (e.g. ToolResult bubble forces monospace on descendants),
+	// so the toggle reads as UI chrome rather than monospace data.
+	&__wrap-toggle-label {
+		font-family:
+			'Inter',
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			Roboto,
+			'Helvetica Neue',
+			Arial,
+			sans-serif;
+		font-size: 12px;
+		line-height: 1.4;
+		color: inherit;
+	}
+
+	&__wrap-icon-btn {
+		color: var(--l2-foreground);
+		opacity: 0.55;
+
+		&:focus-visible {
+			opacity: 1;
+			outline: 2px solid var(--primary-500);
+			outline-offset: -2px;
+		}
+
+		&:hover {
+			opacity: 1;
+			background: transparent;
+		}
+	}
+
+	&--compact {
+		.json-view__footer {
+			height: 24px;
+			border-top: 1px solid var(--l1-border);
+		}
+
+		.json-view__wrap-toggle {
+			gap: 4px;
+			margin-left: 8px;
+		}
 	}
 }

@@ -1,0 +1,21 @@
+{
+	"tagMap": {
+		"gen_ai.session.id": "session_1234567890abcdef",
+		"gen_ai.user.id": "user_abcdef1234567890",
+		"tag.tags": "[\"alpha\",\"beta\",\"gamma\"]",
+		"openinference.metadata": "{\"tenant\":\"acme\",\"region\":\"us-east-1\"}",
+		"gen_ai.input.messages": "[{\"role\":\"user\",\"content\":\"hi\"}]"
+	},
+	"events": [
+		{
+			"name": "exception",
+			"timeUnixNano": 123,
+			"attributeMap": {
+				"exception.type": "ValueError",
+				"exception.message": "bad input",
+				"exception.stacktrace": "Traceback line 1\nTraceback line 2"
+			},
+			"isError": true
+		}
+	]
+}

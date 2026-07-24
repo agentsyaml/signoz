@@ -1,0 +1,12 @@
+{
+	"llm.input_messages.0.message.role": "user",
+	"llm.input_messages.0.message.contents.0.message_content.type": "text",
+	"llm.input_messages.0.message.contents.0.message_content.text": "Describe this image",
+	"llm.input_messages.0.message.contents.1.message_content.type": "image",
+	"llm.input_messages.0.message.contents.1.message_content.image.url": "https://example.com/cat.png",
+	"llm.input_messages.0.message.contents.2.message_content.type": "tool_use",
+	"llm.input_messages.0.message.contents.2.message_content.id": "toolu_1",
+	"llm.input_messages.0.message.contents.2.message_content.text": "search_catalog",
+	"llm.input_messages.0.message.contents.2.message_content.data": "{\"query\":\"cats\"}",
+	"gen_ai.input.messages": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"Describe this image\"},{\"type\":\"image\",\"image\":{\"url\":\"https://example.com/cat.png\"}},{\"type\":\"tool_call\",\"id\":\"toolu_1\",\"name\":\"search_catalog\",\"arguments\":{\"query\":\"cats\"}}]}]"
+}

@@ -117,15 +117,20 @@ export const useSpanContextLogs = ({
 	const [allLogs, setAllLogs] = useState<ILog[]>([]);
 	const [spanLogIds, setSpanLogIds] = useState<Set<string>>(new Set());
 
+	// timeRange values are in milliseconds (e.g. from startTimestampMillis),
+	// but prepareQueryRangePayloadV5 multiplies by 1000 assuming seconds.
+	// Convert to seconds so the backend receives correct millisecond values.
+	const startSeconds = Math.floor(timeRange.startTime / 1000);
+	const endSeconds = Math.ceil(timeRange.endTime / 1000);
+
 	// Phase 1: Fetch span-specific logs (trace_id + span_id)
 	const spanFilter = useMemo(
 		() => createSpanLogsFilters(traceId, spanId),
 		[traceId, spanId],
 	);
 	const spanQueryPayload = useMemo(
-		() =>
-			getSpanLogsQueryPayload(timeRange.startTime, timeRange.endTime, spanFilter),
-		[timeRange.startTime, timeRange.endTime, spanFilter],
+		() => getSpanLogsQueryPayload(startSeconds, endSeconds, spanFilter),
+		[startSeconds, endSeconds, spanFilter],
 	);
 
 	const {
@@ -194,12 +199,8 @@ export const useSpanContextLogs = ({
 		if (!beforeFilter) {
 			return null;
 		}
-		return getSpanLogsQueryPayload(
-			timeRange.startTime,
-			timeRange.endTime,
-			beforeFilter,
-		);
-	}, [timeRange.startTime, timeRange.endTime, beforeFilter]);
+		return getSpanLogsQueryPayload(startSeconds, endSeconds, beforeFilter);
+	}, [startSeconds, endSeconds, beforeFilter]);
 
 	const { data: beforeData, isFetching: isBeforeFetching } = useQuery({
 		queryKey: [
@@ -227,13 +228,8 @@ export const useSpanContextLogs = ({
 		if (!afterFilter) {
 			return null;
 		}
-		return getSpanLogsQueryPayload(
-			timeRange.startTime,
-			timeRange.endTime,
-			afterFilter,
-			'asc',
-		);
-	}, [timeRange.startTime, timeRange.endTime, afterFilter]);
+		return getSpanLogsQueryPayload(startSeconds, endSeconds, afterFilter, 'asc');
+	}, [startSeconds, endSeconds, afterFilter]);
 
 	const { data: afterData, isFetching: isAfterFetching } = useQuery({
 		queryKey: [
@@ -295,12 +291,8 @@ export const useSpanContextLogs = ({
 		if (!traceOnlyFilter) {
 			return null;
 		}
-		return getSpanLogsQueryPayload(
-			timeRange.startTime,
-			timeRange.endTime,
-			traceOnlyFilter,
-		);
-	}, [timeRange.startTime, timeRange.endTime, traceOnlyFilter]);
+		return getSpanLogsQueryPayload(startSeconds, endSeconds, traceOnlyFilter);
+	}, [startSeconds, endSeconds, traceOnlyFilter]);
 
 	const { data: traceOnlyData } = useQuery({
 		queryKey: [

@@ -1,0 +1,10 @@
+{
+	"llm.input_messages.0.message.role": "user",
+	"llm.input_messages.0.message.content": "token details",
+	"llm.token_count.prompt_details.cache_read": "512",
+	"llm.token_count.completion_details.reasoning": "128",
+	"gen_ai.input.messages": "[{\"role\":\"user\",\"content\":\"token details\"}]",
+	"gen_ai.usage.cache_read.input_tokens": "1024",
+	"gen_ai.usage.cache_creation.input_tokens": "64",
+	"gen_ai.usage.reasoning.output_tokens": "256"
+}

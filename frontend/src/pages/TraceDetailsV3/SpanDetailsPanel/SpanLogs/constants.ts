@@ -8,9 +8,11 @@ import { DataSource, ReduceOperators } from 'types/common/queryBuilder';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Creates a query payload for fetching logs related to a specific span
- * @param start - Start time in milliseconds
- * @param end - End time in milliseconds
+ * Creates a query payload for fetching logs related to a specific span.
+ * NOTE: start/end must be in **seconds** (Unix timestamp), not milliseconds.
+ * prepareQueryRangePayloadV5 multiplies by 1000 to convert to ms for the backend.
+ * @param start - Start time in seconds (Unix epoch)
+ * @param end - End time in seconds (Unix epoch)
  * @param filter - V5 filter expression for trace_id and span_id
  * @param order - Timestamp ordering ('desc' for newest first, 'asc' for oldest first)
  * @returns Query payload for logs API

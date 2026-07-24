@@ -27,6 +27,7 @@ import { useVirtualizer, Virtualizer } from '@tanstack/react-virtual';
 import cx from 'classnames';
 import HttpStatusBadge from 'components/HttpStatusBadge/HttpStatusBadge';
 import TimelineV3 from 'components/TimelineV3/TimelineV3';
+import { detectSpanKindFromMaps } from 'container/SpanDetailsDrawer/LLMConversation/adapters/spanKind';
 import { convertTimeToRelevantUnit } from 'container/TraceDetail/utils';
 import { useCopySpanLink } from 'hooks/trace/useCopySpanLink';
 import { useIsDarkMode } from 'hooks/useDarkMode';
@@ -215,6 +216,11 @@ const SpanOverview = memo(function SpanOverview({
 	// light mode so the dot stands out against the white panel.
 	const effectiveColor = isDarkMode ? color : colorDark;
 
+	const aiSpanKind = useMemo(
+		() => detectSpanKindFromMaps(span.attributes, span.resource),
+		[span.attributes, span.resource],
+	);
+
 	// Smart highlighting logic
 	const {
 		isSelected,
@@ -340,6 +346,15 @@ const SpanOverview = memo(function SpanOverview({
 			{/* Span name + service name */}
 			<span className={styles.treeLabel}>
 				{span.name}
+				{aiSpanKind !== 'UNKNOWN' && (
+					<Badge
+						color="sakura"
+						className={styles.llmBadge}
+						testId="waterfall-llm-badge"
+					>
+						{aiSpanKind}
+					</Badge>
+				)}
 				<span className={styles.treeServiceName}>{span['service.name']}</span>
 			</span>
 
