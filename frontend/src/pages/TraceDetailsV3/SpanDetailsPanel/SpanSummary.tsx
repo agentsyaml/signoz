@@ -30,7 +30,9 @@ function SpanSummary({
 	traceEndTime,
 }: SpanSummaryProps): JSX.Element {
 	const percentile = useSpanPercentile(selectedSpan);
-	const linkedSpans = useLinkedSpans((selectedSpan as any).references);
+	const linkedSpans = useLinkedSpans(
+		selectedSpan.attributes?.references ?? selectedSpan.references,
+	);
 
 	return (
 		<>

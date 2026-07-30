@@ -1,0 +1,9 @@
+{
+	"llm.output_messages.0.message.role": "assistant",
+	"llm.output_messages.0.message.contents.0.message_content.type": "text",
+	"llm.output_messages.0.message.contents.0.message_content.text": "I'll look up the weather for you.",
+	"llm.output_messages.0.message.contents.1.message_content.type": "tool_use",
+	"llm.output_messages.0.message.contents.1.tool_call.id": "toolu_abc123",
+	"llm.output_messages.0.message.contents.1.tool_call.function.name": "get_weather",
+	"llm.output_messages.0.message.contents.1.tool_call.function.arguments": "{\"city\":\"Paris\",\"unit\":\"celsius\"}"
+}

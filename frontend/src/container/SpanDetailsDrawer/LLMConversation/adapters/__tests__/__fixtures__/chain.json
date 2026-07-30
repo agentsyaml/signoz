@@ -1,0 +1,6 @@
+{
+	"openinference.span.kind": "CHAIN",
+	"chain.name": "orchestration_chain",
+	"input.value": "plan request",
+	"output.value": "chain finished"
+}

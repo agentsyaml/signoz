@@ -1,0 +1,8 @@
+{
+	"embedding.text": "single embedding text",
+	"embedding.vector": "[0.11,0.22,0.33]",
+	"embedding.id": "single-id",
+	"embedding.metadata": { "tenant": "acme" },
+	"embedding.model_name": "text-embedding-ada-002",
+	"gen_ai.request.encoding_formats": "float, base64"
+}

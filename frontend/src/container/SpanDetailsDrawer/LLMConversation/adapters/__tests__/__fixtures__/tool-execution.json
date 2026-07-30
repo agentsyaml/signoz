@@ -1,0 +1,10 @@
+{
+	"openinference.span.kind": "TOOL",
+	"tool.name": "search_catalog",
+	"tool.description": "Search the product catalog by keyword and filters.",
+	"tool.parameters": "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"},\"limit\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"query\"]}",
+	"input.value": "{\"query\":\"winter jacket\",\"limit\":3}",
+	"input.mime_type": "application/json",
+	"output.value": "{\"results\":[{\"id\":\"sku_123\",\"score\":0.92}]}",
+	"output.mime_type": "application/json"
+}
