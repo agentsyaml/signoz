@@ -1,4 +1,4 @@
-export function isJsonMime(mimeType: string | undefined): boolean {
+function isJsonMime(mimeType: string | undefined): boolean {
 	if (!mimeType) {
 		return false;
 	}

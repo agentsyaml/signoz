@@ -1,13 +1,13 @@
-export const JSON_LINE_HEIGHT_PX = 18;
-export const JSON_CHROME_PX = 52;
-export const JSON_MIN_HEIGHT_PX = 80;
-export const JSON_MAX_HEIGHT_PX = 480;
+const JSON_LINE_HEIGHT_PX = 18;
+const JSON_CHROME_PX = 52;
+const JSON_MIN_HEIGHT_PX = 80;
+const JSON_MAX_HEIGHT_PX = 480;
 
-export const TOOL_CALL_JSON_MIN_HEIGHT_PX = 100;
-export const TOOL_CALL_JSON_MAX_HEIGHT_PX = 640;
+const TOOL_CALL_JSON_MIN_HEIGHT_PX = 100;
+const TOOL_CALL_JSON_MAX_HEIGHT_PX = 640;
 
-export const IO_JSON_MIN_HEIGHT_PX = 280;
-export const IO_JSON_MAX_HEIGHT_PX = 720;
+const IO_JSON_MIN_HEIGHT_PX = 280;
+const IO_JSON_MAX_HEIGHT_PX = 720;
 
 export function getJsonViewHeight(
 	jsonString: string,
