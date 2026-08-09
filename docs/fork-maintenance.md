@@ -44,7 +44,7 @@ LLM Tab 集成在 `SpanDetailsContent` 中：合并 span 的 resource 与 attrib
 
 ### 2.4 上游基础镜像升级
 
-`Dockerfile.frontend` 中默认 `SIGNOZ_BASE_IMAGE` 已 pin 至 `signoz/signoz-community:v0.134.0`。
+`Dockerfile.frontend` 中默认 `SIGNOZ_BASE_IMAGE` 已 pin 至 `signoz/signoz-community:v0.136.1`。
 跟进上游新版本时：
 
 1. 确认 [Docker Hub tags](https://hub.docker.com/r/signoz/signoz-community/tags) 中存在新版本
