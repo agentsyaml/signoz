@@ -37,7 +37,7 @@ docker buildx build -f Dockerfile.frontend \
 
 > ℹ️ **基础镜像版本**：默认 pin 至上游 `v0.136.1`（社区版同样 pin），保证构建可重现。升级上游时需同步修改 `Dockerfile.frontend` 中的 `SIGNOZ_BASE_IMAGE` 默认 tag。
 
-📖 **Fork 维护文档**：上游同步流程、Yarn Berry 迁移说明、已知问题等详见 [`docs/fork-maintenance.md`](./docs/fork-maintenance.md)。
+📖 **Fork 维护文档**：上游同步流程、Yarn 到 pnpm 迁移说明、已知问题等详见 [`docs/fork-maintenance.md`](./docs/fork-maintenance.md)。
 
 > ⚠️ **企业版授权声明**：`signoz/signoz` 镜像受 [SigNoz 企业版专有许可证](https://github.com/SigNoz/signoz/blob/main/ee/LICENSE) 约束。在生产环境中使用企业版镜像，须持有 SigNoz 颁发的有效企业授权。如需申请，请联系 [hello@signoz.io](mailto:hello@signoz.io)。社区版镜像（`signoz/signoz-community`）使用 MIT 许可证，无此限制。
 

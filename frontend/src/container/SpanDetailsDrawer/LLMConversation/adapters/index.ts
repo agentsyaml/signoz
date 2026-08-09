@@ -13,8 +13,8 @@ import type {
 	SessionInfo,
 	ToolDefinition,
 	ToolExecutionData,
+	Event,
 } from '../types';
-import type { Event } from '../types';
 import { parseAgent, parseChain } from './agent-chain';
 import { applyGenAiAdapter } from './gen-ai';
 import { applyFallbackAdapter } from './fallback';
@@ -128,6 +128,63 @@ function mergeSecondaryMetadata(
 	};
 }
 
+interface OptionalSpanFields {
+	invocationParameters?: InvocationParameters;
+	promptTemplate?: PromptTemplate;
+	secondaryMetadata?: SecondaryMetadata;
+	session?: SessionInfo;
+	availableTools?: ToolDefinition[];
+	io?: IOPayload;
+	retrieval?: RetrieverData;
+	embedding?: EmbeddingData;
+	reranker?: RerankerData;
+	toolExecution?: ToolExecutionData;
+	agent?: AgentData;
+	chain?: { name?: string };
+}
+
+function attachOptionalFields(
+	target: ParseResult,
+	fields: OptionalSpanFields,
+): void {
+	if (fields.invocationParameters) {
+		target.invocationParameters = fields.invocationParameters;
+	}
+	if (fields.promptTemplate) {
+		target.promptTemplate = fields.promptTemplate;
+	}
+	if (fields.secondaryMetadata) {
+		target.secondaryMetadata = fields.secondaryMetadata;
+	}
+	if (fields.session) {
+		target.session = fields.session;
+	}
+	if (fields.availableTools && fields.availableTools.length > 0) {
+		target.availableTools = fields.availableTools;
+	}
+	if (fields.io) {
+		target.io = fields.io;
+	}
+	if (fields.retrieval) {
+		target.retrieval = fields.retrieval;
+	}
+	if (fields.embedding) {
+		target.embedding = fields.embedding;
+	}
+	if (fields.reranker) {
+		target.reranker = fields.reranker;
+	}
+	if (fields.toolExecution) {
+		target.toolExecution = fields.toolExecution;
+	}
+	if (fields.agent) {
+		target.agent = fields.agent;
+	}
+	if (fields.chain) {
+		target.chain = fields.chain;
+	}
+}
+
 function mergeConversationByPrecedence(
 	fallback: ConversationTurn[] | undefined,
 	openInference: ConversationTurn[] | undefined,
@@ -217,42 +274,20 @@ export function parseLLMSpan(
 				? genAi.availableTools
 				: openInference?.availableTools;
 		const io = genAi?.io ?? openInference?.io ?? fallback?.io;
-		if (invocationParameters) {
-			empty.invocationParameters = invocationParameters;
-		}
-		if (promptTemplate) {
-			empty.promptTemplate = promptTemplate;
-		}
-		if (secondaryMetadata) {
-			empty.secondaryMetadata = secondaryMetadata;
-		}
-		if (session) {
-			empty.session = session;
-		}
-		if (availableTools && availableTools.length > 0) {
-			empty.availableTools = availableTools;
-		}
-		if (io) {
-			empty.io = io;
-		}
-		if (retriever) {
-			empty.retrieval = retriever.retrieval;
-		}
-		if (embedding) {
-			empty.embedding = embedding;
-		}
-		if (reranker) {
-			empty.reranker = reranker;
-		}
-		if (toolExecution) {
-			empty.toolExecution = toolExecution;
-		}
-		if (agent) {
-			empty.agent = agent;
-		}
-		if (chain) {
-			empty.chain = chain;
-		}
+		attachOptionalFields(empty, {
+			invocationParameters,
+			promptTemplate,
+			secondaryMetadata,
+			session,
+			availableTools,
+			io,
+			retrieval: retriever?.retrieval,
+			embedding,
+			reranker,
+			toolExecution,
+			agent,
+			chain,
+		});
 		return empty;
 	}
 
@@ -297,41 +332,19 @@ export function parseLLMSpan(
 		metrics: mergedMetrics,
 		adapterUsed: best.adapter,
 	};
-	if (invocationParameters) {
-		result.invocationParameters = invocationParameters;
-	}
-	if (promptTemplate) {
-		result.promptTemplate = promptTemplate;
-	}
-	if (secondaryMetadata) {
-		result.secondaryMetadata = secondaryMetadata;
-	}
-	if (session) {
-		result.session = session;
-	}
-	if (availableTools && availableTools.length > 0) {
-		result.availableTools = availableTools;
-	}
-	if (io) {
-		result.io = io;
-	}
-	if (agent) {
-		result.agent = agent;
-	}
-	if (chain) {
-		result.chain = chain;
-	}
-	if (retriever) {
-		result.retrieval = retriever.retrieval;
-	}
-	if (embedding) {
-		result.embedding = embedding;
-	}
-	if (reranker) {
-		result.reranker = reranker;
-	}
-	if (toolExecution) {
-		result.toolExecution = toolExecution;
-	}
+	attachOptionalFields(result, {
+		invocationParameters,
+		promptTemplate,
+		secondaryMetadata,
+		session,
+		availableTools,
+		io,
+		agent,
+		chain,
+		retrieval: retriever?.retrieval,
+		embedding,
+		reranker,
+		toolExecution,
+	});
 	return result;
 }
