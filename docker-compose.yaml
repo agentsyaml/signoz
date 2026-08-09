@@ -7,5 +7,5 @@ services:
       #   - linux/amd64
       #   - linux/arm64
       args:
-        SIGNOZ_BASE_IMAGE: ${SIGNOZ_BASE_IMAGE:-signoz/signoz-community:v0.134.0}
-    image: ${DOCKER_REGISTRY:-docker.io}/${SIGNOZ_BUILD_IMAGE:-alexsuntop/signoz-community}:${BUILD_VERSION:-v0.134.0}
+        SIGNOZ_BASE_IMAGE: ${SIGNOZ_BASE_IMAGE:-signoz/signoz-community:v0.136.1}
+    image: ${DOCKER_REGISTRY:-docker.io}/${SIGNOZ_BUILD_IMAGE:-alexsuntop/signoz-community}:${BUILD_VERSION:-v0.136.1}
