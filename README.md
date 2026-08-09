@@ -24,18 +24,18 @@ docker buildx build -f Dockerfile.frontend \
 ```bash
 # 单架构（本机，仅本地使用）
 docker build -f Dockerfile.frontend \
-  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.134.0 \
+  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.136.1 \
   -t my-signoz:enterprise .
 
 # 多架构（推送至 registry）
 docker buildx build -f Dockerfile.frontend \
   --platform linux/amd64,linux/arm64 \
-  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.134.0 \
+  --build-arg SIGNOZ_BASE_IMAGE=signoz/signoz:v0.136.1 \
   -t <your-registry>/my-signoz:enterprise \
   --push .
 ```
 
-> ℹ️ **基础镜像版本**：默认 pin 至上游 `v0.134.0`（社区版同样 pin），保证构建可重现。升级上游时需同步修改 `Dockerfile.frontend` 中的 `SIGNOZ_BASE_IMAGE` 默认 tag。
+> ℹ️ **基础镜像版本**：默认 pin 至上游 `v0.136.1`（社区版同样 pin），保证构建可重现。升级上游时需同步修改 `Dockerfile.frontend` 中的 `SIGNOZ_BASE_IMAGE` 默认 tag。
 
 📖 **Fork 维护文档**：上游同步流程、Yarn Berry 迁移说明、已知问题等详见 [`docs/fork-maintenance.md`](./docs/fork-maintenance.md)。
 
