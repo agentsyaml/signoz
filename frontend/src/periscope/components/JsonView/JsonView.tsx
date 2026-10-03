@@ -117,7 +117,7 @@ function JsonView({
 			<MEditor
 				value={data}
 				language="json"
-options={dynamicOptions}
+				options={dynamicOptions}
 				onChange={noop}
 				height={height}
 				theme={isDarkMode ? 'signoz-dark' : 'light'}
