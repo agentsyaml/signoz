@@ -66,10 +66,26 @@ LLM Tab 集成在 `SpanDetailsContent` 中：合并 span 的 resource 与 attrib
 
 Lockfile：`frontend/pnpm-lock.yaml`（由 pnpm 维护，请勿手动编辑）。
 
+### 3.1 `pnpm-workspace.yaml` 相关（上游 v0.144 起引入）
+
+上游已把 `overrides` 从 `frontend/package.json` 迁到 `frontend/pnpm-workspace.yaml`，并新增供应链相关设置。**不要**在 `package.json` 里保留 overrides 副本 —— pnpm 10 只读 workspace 文件，残留副本会让 `--frozen-lockfile` 因 overrides 哈希不一致而失败。
+
+- `minimumReleaseAge: 2880`（48h）：意味着**任何发布不足 48 小时的版本都无法被解析到**，升级依赖时若报 `ERR_PNPM_NO_MATURE_MATCHING_VERSION` 属预期行为。
+- `minimumReleaseAgeStrict: true` 在 pnpm 10.x（含当前 pin 的 10.34.4 / CI 的 10.34.6）**不被识别**，属上游配置冗余，pnpm 会静默忽略，无需在本 fork 处理。
+
+### 3.2 pnpm 版本 pin 与 CI 的偏差
+
+`frontend/package.json` 的 `packageManager` 精确 pin `pnpm@10.34.4`，而上游 CI（`jsci.yaml` / `e2eci.yaml` / `goci.yaml` / `gor-*.yaml`）给 `pnpm/action-setup@v6` 传的是 `version: 10`，实际解析为 `latest-10`（当前 10.34.6）。`version` 入参优先级高于 `packageManager`，因此**本地与 Docker 用 10.34.4、CI 用 10.34.x 最新版**。精确 pin 是为 Docker 可重现构建服务的，保留即可，但升级 pin 时需知悉此偏差。
+
 ## 4. 待办与已知问题
 
 - [ ] **i18n**：LLM 模块文案大量集中在 `frontend/public/locales/{en,en-GB}/llmConversation.json`，新增视图后需保持双语同步
 - [ ] **antd → @signozhq/ui 增量迁移**：见 §2.3
+- [ ] **`useSpanContextLogs` 的毫秒→秒补丁**：本 fork 修改了上游文件`SpanLogs/useSpanContextLogs.ts`（对 `startTimestampMillis` 做 `/1000`），修复上游 `prepareQueryRangePayloadV5` 期望秒而 `SpanDetailsPanel` 传入毫秒的单位不一致。这是**对上游文件的 fork 补丁**：若上游日后自行修复该单位问题，rebase 时勿直接取 `ours`，否则会二次换算。
+- [ ] **`LinkedSpans.isSpanReference` 收窄**：本 fork 要求 `traceId`/`spanId`/`refType` 三者均为 `string`，而后端这些字段带 `omitempty`，字段缺失的引用会被静默丢弃，导致 linked span 计数与上游/API 不一致。上游原逻辑仅校验 `refType !== 'CHILD_OF'`。
+- [ ] **`remark-gfm` 精确 pin**：`package.json` 中 pin 为 `3.0.1`（上游为 `^3.0.1`），当前二者解析结果一致，故暂时无害；但上游一旦为 CVE 提升 `remark-gfm` 版本，精确 pin 会直接导致 lockfile 失败。pin 的原因未记录在案。
+- [ ] **`.ignore` 文件**：仅为 ripgrep 生效（`.ignore` 优先级高于 `.gitignore`），对 git 与 Docker 无效；`.slim/deepwork/` 无任何被跟踪文件，容易误导读者以为那是仓库产物路径。
+- [ ] **对上游文件的全局行为改动**：`periscope/components/JsonView/JsonView.tsx` 将上游的 `scrollbar: hidden` 改为 `auto`，`JsonView.styles.scss` 还用 `!important` 覆盖了 Monaco 的行宽 —— 这些会影响**所有** `JsonView` 使用方（含上游 DataViewer 的 JSON tab），不限于 LLM 面板。
 
 ## 5. 联系与回流
 
