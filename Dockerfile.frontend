@@ -1,4 +1,4 @@
-ARG SIGNOZ_BASE_IMAGE=signoz/signoz-community:v0.136.1
+ARG SIGNOZ_BASE_IMAGE=signoz/signoz-community:v0.144.0
 
 FROM ${SIGNOZ_BASE_IMAGE} AS base
 
