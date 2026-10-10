@@ -428,6 +428,23 @@
 	font-weight: 400;
 }
 
+// Compact "LLM" badge rendered next to the span name when the span carries
+// OpenTelemetry GenAI / OpenInference attributes. Uses sakura color so it
+// stands out against the otherwise neutral waterfall row palette.
+.llmBadge {
+	margin-left: 6px;
+	flex-shrink: 0;
+	vertical-align: middle;
+
+	:global(.badge) {
+		font-size: 9px;
+		line-height: 12px;
+		padding: 0 4px;
+		height: 14px;
+		letter-spacing: 0.04em;
+	}
+}
+
 .rowActions {
 	position: sticky;
 	right: 0;

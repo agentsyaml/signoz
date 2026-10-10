@@ -1,0 +1,7 @@
+{
+	"llm.input_messages.0.message.role": "user",
+	"llm.input_messages.0.message.content": "cost please",
+	"llm.cost.prompt": "0.0012",
+	"llm.cost.completion": "0.0034",
+	"llm.cost.total": "0.0046"
+}

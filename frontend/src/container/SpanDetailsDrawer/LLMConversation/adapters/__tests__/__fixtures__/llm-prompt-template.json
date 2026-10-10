@@ -1,0 +1,7 @@
+{
+	"llm.prompt_template.template": "Hello {name}",
+	"llm.prompt_template.variables": "{\"name\":\"World\"}",
+	"llm.prompt_template.version": "v2",
+	"llm.input_messages.0.message.role": "user",
+	"llm.input_messages.0.message.content": "Hello World"
+}

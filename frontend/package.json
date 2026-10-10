@@ -82,6 +82,7 @@
     "dompurify": "3.4.15",
     "event-source-polyfill": "1.0.31",
     "eventemitter3": "5.0.1",
+    "github-markdown-css": "5.8.1",
     "history": "4.10.1",
     "html-to-image": "1.11.13",
     "http-status-codes": "2.3.0",
@@ -126,7 +127,7 @@
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0",
     "rehype-raw": "7.0.0",
-    "remark-gfm": "^3.0.1",
+    "remark-gfm": "3.0.1",
     "rollup-plugin-visualizer": "7.0.0",
     "rrule": "2.8.1",
     "styled-components": "^5.3.11",
@@ -234,5 +235,6 @@
     "*.(scss|css)": [
       "stylelint"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.34.4+sha512.8768be55200ae3f2226b6527fcca2687e14bc4e5f12d7721a0f25da3df47915177058648db4177baf348120fa0ba2752d8d8d93f6beaf1fe64ae18da8de961af"
 }

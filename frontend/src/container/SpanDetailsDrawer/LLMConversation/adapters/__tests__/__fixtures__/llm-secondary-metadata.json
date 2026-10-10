@@ -1,0 +1,6 @@
+{
+	"gen_ai.input.messages": "[{\"role\":\"user\",\"content\":\"metadata\"}]",
+	"gen_ai.response.id": "resp_abc",
+	"gen_ai.response.time_to_first_chunk": "0.234",
+	"gen_ai.conversation.id": "conv_xyz"
+}
