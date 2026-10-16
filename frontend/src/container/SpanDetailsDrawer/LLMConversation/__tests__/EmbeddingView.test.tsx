@@ -67,6 +67,19 @@ describe('EmbeddingView', () => {
 		).toBeInTheDocument();
 	});
 
+	it('renders identifier chips with preserved text casing (no uppercase transform)', () => {
+		renderEmbeddingView({
+			modelName: 'text-embedding-3-large',
+			dimensionCount: 1536,
+			items: [],
+		});
+
+		const chips = screen
+			.getByText('embedding_model: text-embedding-3-large')
+			.closest('[data-slot="badge"]');
+		expect(chips).toHaveAttribute('data-text-transform', 'none');
+	});
+
 	it('hides header chips when optional values are absent', () => {
 		renderEmbeddingView({ items: [{ text: 'hello' }] });
 

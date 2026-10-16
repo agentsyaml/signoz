@@ -39,7 +39,7 @@ function IOSectionImpl({
 			<header className="llm-io-section__header">
 				<span className="llm-io-section__title">{t(titleKey)}</span>
 				{mimeType ? (
-					<Badge color="vanilla" className="llm-io-section__mime">
+					<Badge variant="solid" color="secondary" data-class="llm-io-section__mime">
 						{mimeType}
 					</Badge>
 				) : null}

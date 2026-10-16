@@ -83,22 +83,22 @@ const MARKDOWN_COMPONENTS: NonNullable<
 const ROLE_CONFIG = {
 	user: {
 		align: 'flex-end' as const,
-		color: 'robin' as const,
+		color: 'info' as const,
 		cssClass: 'llm-chat-message--user',
 	},
 	assistant: {
 		align: 'flex-start' as const,
-		color: 'forest' as const,
+		color: 'success' as const,
 		cssClass: 'llm-chat-message--assistant',
 	},
 	system: {
 		align: 'flex-start' as const,
-		color: 'amber' as const,
+		color: 'warning' as const,
 		cssClass: 'llm-chat-message--system',
 	},
 	tool: {
 		align: 'flex-start' as const,
-		color: 'sakura' as const,
+		color: 'danger' as const,
 		cssClass: 'llm-chat-message--tool',
 	},
 } as const;
@@ -296,7 +296,11 @@ function ChatMessageImpl({ turn }: ChatMessageProps): JSX.Element {
 								items={[
 									{
 										key,
-										label: <Badge color="vanilla">{label}</Badge>,
+										label: (
+											<Badge variant="solid" color="secondary">
+												{label}
+											</Badge>
+										),
 										children: (
 											<div className="llm-json-viewer-wrapper">
 												<JsonView
@@ -368,7 +372,11 @@ function ChatMessageImpl({ turn }: ChatMessageProps): JSX.Element {
 			style={{ alignItems: config.align }}
 		>
 			<div className="llm-chat-message__header">
-				<Badge color={config.color} className="llm-chat-message__role-tag">
+				<Badge
+					variant="solid"
+					color={config.color}
+					data-class="llm-chat-message__role-tag"
+				>
 					{t(ROLE_LABEL_KEY[turn.role])}
 				</Badge>
 				{turn.role === 'tool' && turn.toolCallId && (
@@ -380,7 +388,11 @@ function ChatMessageImpl({ turn }: ChatMessageProps): JSX.Element {
 					</Tooltip>
 				)}
 				{(turn.finishReason || turn.finishReasons?.length) && (
-					<Badge color="vanilla" className="llm-chat-message__finish-reason">
+					<Badge
+						variant="solid"
+						color="secondary"
+						data-class="llm-chat-message__finish-reason"
+					>
 						{turn.finishReason ?? turn.finishReasons?.join(', ')}
 					</Badge>
 				)}

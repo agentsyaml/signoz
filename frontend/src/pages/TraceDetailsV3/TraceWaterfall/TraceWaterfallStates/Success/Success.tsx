@@ -354,8 +354,10 @@ const SpanOverview = memo(function SpanOverview({
 				{span.name}
 				{aiSpanKind !== 'UNKNOWN' && (
 					<Badge
-						color="sakura"
-						className={styles.llmBadge}
+						variant="solid"
+						color="secondary"
+						textTransform="none"
+						data-class="waterfall-llm-badge"
 						testId="waterfall-llm-badge"
 					>
 						{aiSpanKind}

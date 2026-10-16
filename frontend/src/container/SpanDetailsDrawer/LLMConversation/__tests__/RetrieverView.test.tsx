@@ -56,13 +56,16 @@ describe('RetrieverView', () => {
 			],
 		});
 
-		expect(screen.getByText('0.910')).toHaveClass(
+		expect(screen.getByText('0.910').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--high',
 		);
-		expect(screen.getByText('0.610')).toHaveClass(
+		expect(screen.getByText('0.610').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--med',
 		);
-		expect(screen.getByText('0.210')).toHaveClass(
+		expect(screen.getByText('0.210').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--low',
 		);
 	});

@@ -421,19 +421,21 @@
 }
 
 // Compact "LLM" badge rendered next to the span name when the span carries
-// OpenTelemetry GenAI / OpenInference attributes. Uses sakura color so it
-// stands out against the otherwise neutral waterfall row palette.
+// OpenTelemetry GenAI / OpenInference attributes. Styled through data-class
+// because @signozhq/ui 0.2.0 Badge forwards data-* attrs instead of className.
+:global([data-class='waterfall-llm-badge']),
 .llmBadge {
 	margin-left: 6px;
 	flex-shrink: 0;
 	vertical-align: middle;
 
-	:global(.badge) {
+	&[data-slot='badge'] {
 		font-size: 9px;
 		line-height: 12px;
 		padding: 0 4px;
 		height: 14px;
 		letter-spacing: 0.04em;
+		text-transform: none;
 	}
 }
 

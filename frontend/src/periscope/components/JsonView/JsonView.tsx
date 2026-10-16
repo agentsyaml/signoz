@@ -4,7 +4,7 @@ import { Color } from '@signozhq/design-tokens';
 import { WrapText } from '@signozhq/icons';
 import { Button } from '@signozhq/ui/button';
 import { Switch } from '@signozhq/ui/switch';
-import { TooltipProvider, TooltipSimple } from '@signozhq/ui/tooltip';
+import { Tooltip } from '@signozhq/ui/tooltip';
 import { Typography } from '@signozhq/ui/typography';
 import { useIsDarkMode } from 'hooks/useDarkMode';
 
@@ -126,21 +126,19 @@ function JsonView({
 			<div className="json-view__footer">
 				<div className="json-view__wrap-toggle">
 					{compact ? (
-						<TooltipProvider>
-							<TooltipSimple title={isWrapWord ? 'Unwrap text' : 'Wrap text'}>
-								<Button
-									variant="ghost"
-									size="icon"
-									color="secondary"
-									onClick={handleWrapButtonClick}
-									aria-label="Wrap text"
-									aria-pressed={isWrapWord}
-									className="json-view__wrap-icon-btn"
-								>
-									<WrapText size={12} />
-								</Button>
-							</TooltipSimple>
-						</TooltipProvider>
+						<Tooltip title={isWrapWord ? 'Unwrap text' : 'Wrap text'}>
+							<Button
+								variant="ghost"
+								size="sm"
+								color="secondary"
+								onClick={handleWrapButtonClick}
+								aria-label="Wrap text"
+								aria-pressed={isWrapWord}
+								data-class="json-view__wrap-icon-btn"
+							>
+								<WrapText size={12} />
+							</Button>
+						</Tooltip>
 					) : (
 						<>
 							<Typography.Text className="json-view__wrap-toggle-label">

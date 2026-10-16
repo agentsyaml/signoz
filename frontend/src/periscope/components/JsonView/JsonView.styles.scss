@@ -49,7 +49,10 @@
 		color: inherit;
 	}
 
-	&__wrap-icon-btn {
+	// The 0.2.0 Button drops `className`; style the icon toggle through its
+	// data attribute instead.
+	&__wrap-icon-btn,
+	button[data-class='json-view__wrap-icon-btn'] {
 		color: var(--l2-foreground);
 		opacity: 0.55;
 

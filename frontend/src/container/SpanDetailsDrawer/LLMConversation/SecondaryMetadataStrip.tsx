@@ -43,12 +43,12 @@ function SecondaryMetadataStripImpl({
 				<button
 					key="response-id"
 					type="button"
-					className="llm-secondary-pill llm-secondary-pill--clickable"
+					data-class="llm-secondary-pill llm-secondary-pill--clickable"
 					onClick={(): void => {
 						copyText(responseId);
 					}}
 				>
-					<Badge color="vanilla" variant="outline">
+					<Badge color="secondary" variant="outlined">
 						{t('secondary_response_id')}: {truncateMiddle(responseId)}
 					</Badge>
 				</button>,
@@ -58,9 +58,9 @@ function SecondaryMetadataStripImpl({
 			next.push(
 				<Badge
 					key="ttfc"
-					color="vanilla"
-					variant="outline"
-					className="llm-secondary-pill"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-secondary-pill"
 				>
 					{t('secondary_ttfc')}: {formatTtfc(secondaryMetadata.timeToFirstChunk)}
 				</Badge>,
@@ -70,9 +70,9 @@ function SecondaryMetadataStripImpl({
 			next.push(
 				<Badge
 					key="conversation-id"
-					color="vanilla"
-					variant="outline"
-					className="llm-secondary-pill"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-secondary-pill"
 				>
 					{t('secondary_conversation_id')}:{' '}
 					{truncateMiddle(secondaryMetadata.conversationId)}
@@ -83,9 +83,9 @@ function SecondaryMetadataStripImpl({
 			next.push(
 				<Badge
 					key="operation-name"
-					color="vanilla"
-					variant="outline"
-					className="llm-secondary-pill"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-secondary-pill"
 				>
 					{t('secondary_operation')}: {secondaryMetadata.operationName}
 				</Badge>,

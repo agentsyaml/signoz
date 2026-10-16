@@ -110,12 +110,20 @@ function ToolExecutionViewImpl({
 					>
 						<div className="llm-tool-execution-view__chips">
 							{toolExecution.id ? (
-								<Badge color="vanilla" className="llm-tool-execution-view__id-tag">
+								<Badge
+									variant="solid"
+									color="secondary"
+									data-class="llm-tool-execution-view__id-tag"
+								>
 									{t('tool_execution_id')}: {toolExecution.id}
 								</Badge>
 							) : null}
 							{toolExecution.name ? (
-								<Badge color="vanilla" className="llm-tool-execution-view__name-tag">
+								<Badge
+									variant="solid"
+									color="secondary"
+									data-class="llm-tool-execution-view__name-tag"
+								>
 									{toolExecution.name}
 								</Badge>
 							) : null}

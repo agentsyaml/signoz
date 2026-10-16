@@ -83,7 +83,7 @@ function ParametersStripImpl({
 					label: (
 						<div className="llm-strip__header">
 							<span>{t('parameters_title')}</span>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{entries.length}
 							</Badge>
 						</div>
