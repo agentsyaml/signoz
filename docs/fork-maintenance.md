@@ -38,17 +38,17 @@ LLM Tab 集成在 `SpanDetailsContent` 中：合并 span 的 resource 与 attrib
 
 上游持续将 antd 组件替换为 `@signozhq/ui/*`（Button / Switch / Tooltip / Typography / Dropdown 等）。我们的 `JsonView.tsx` 已迁移；`LLMConversation/*` 多数文件仍使用 antd（不影响功能，可作为后续重构任务）。
 
-- 使用 `TooltipSimple` 时必须配 `TooltipProvider`（Radix 上下文要求）
-- Switch 新 API：`value=` / `onChange=`（不是 antd 的 `checked=`）
-- Button 新 API：`variant="ghost"` `size="icon"` `color="secondary"`
+- 使用 `Tooltip` 时注意 0.2.0 已移除 `TooltipSimple` / `TooltipRoot` 等旧 API
+- Badge 新 API：颜色限定 `primary/secondary/danger/warning/success/info/archive/highlight-danger`，`variant` 必填（`solid`/`outlined`），且**不再接受 `className`**（改用 `data-*` 属性 + 选择器）
+- Button 同样不接受 `className`；`size="icon"` 改为 `icon` 布尔 prop + `size="sm"`
 
 ### 2.4 上游基础镜像升级
 
-`Dockerfile.frontend` 中默认 `SIGNOZ_BASE_IMAGE` 已 pin 至 `signoz/signoz-community:v0.144.0`。
+`Dockerfile.frontend` 中默认 `SIGNOZ_BASE_IMAGE` 已 pin 至 `signoz/signoz-community:v0.146.0`。
 跟进上游新版本时：
 
 1. 确认 [Docker Hub tags](https://hub.docker.com/r/signoz/signoz-community/tags) 中存在新版本
-2. 同步修改 `Dockerfile.frontend` 与 `README.md` 中的 `v0.144.0` 引用
+2. 同步修改 `Dockerfile.frontend`、`docker-compose.yaml` 与 `README.md` 中的 `v0.146.0` 引用
 3. 本地构建烟测：`docker build -f Dockerfile.frontend -t test-signoz .`
 4. 校验前端能正常加载且 LLM Tab 可用
 
@@ -86,6 +86,15 @@ Lockfile：`frontend/pnpm-lock.yaml`（由 pnpm 维护，请勿手动编辑）�
 - [ ] **`remark-gfm` 精确 pin**：`package.json` 中 pin 为 `3.0.1`（上游为 `^3.0.1`），当前二者解析结果一致，故暂时无害；但上游一旦为 CVE 提升 `remark-gfm` 版本，精确 pin 会直接导致 lockfile 失败。pin 的原因未记录在案。
 - [ ] **`.ignore` 文件**：仅为 ripgrep 生效（`.ignore` 优先级高于 `.gitignore`），对 git 与 Docker 无效；`.slim/deepwork/` 无任何被跟踪文件，容易误导读者以为那是仓库产物路径。
 - [ ] **对上游文件的全局行为改动**：`periscope/components/JsonView/JsonView.tsx` 将上游的 `scrollbar: hidden` 改为 `auto`，`JsonView.styles.scss` 还用 `!important` 覆盖了 Monaco 的行宽 —— 这些会影响**所有** `JsonView` 使用方（含上游 DataViewer 的 JSON tab），不限于 LLM 面板。
+
+### 4.1 2026-10-16 同步记录（v0.144 → v0.146）
+
+rebase 到 `upstream/main@60bc6ac96f`（该 commit 位于 tag `v0.146.0` 之后，非 tag 本身；tag 指向更早的发布点）。备份分支 `fork-backup-2026-10-16-rebase-v0.146.0`。
+
+- 上游引入 `@signozhq/ui` 0.2.0（commit `11ae922ff7`），Badge/Button 移除 `className`、Badge 颜色收窄，LLM 模块已机械迁移（见 §2.3）；迁移后 `tsgo --noEmit` 0 错误，LLMConversation + TraceDetailsV3 相关 jest 全部通过
+- 上游未修复 `prepareQueryRangePayloadV5` 单位问题，fork 的 `/1000` 补丁保留
+- 基础镜像 pin 升至 `v0.146.0`（Docker Hub 确认 tag 存在，2026-10-14 发布）
+- 烟测：daemon 29.8.2 下 `docker build -f Dockerfile.frontend -t test-signoz:smoke-v0.146.0 .` 构建成功，镜像内 `/etc/signoz/web` 含 index.html + 1177 个 asset；浏览器加载与 LLM Tab 功能验证由前端负责人负责
 
 ## 5. 联系与回流
 

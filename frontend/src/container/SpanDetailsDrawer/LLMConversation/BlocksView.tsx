@@ -43,7 +43,11 @@ function TurnBlockImpl({ turn, turnKey }: TurnBlockProps): JSX.Element {
 				key: turnKey,
 				label: (
 					<div className="llm-turn-block__label">
-						<Badge color="vanilla" className="llm-turn-block__role-tag">
+						<Badge
+							variant="solid"
+							color="secondary"
+							data-class="llm-turn-block__role-tag"
+						>
 							{turn.role}
 						</Badge>
 						<span className="llm-turn-block__preview">
@@ -114,7 +118,9 @@ function FunctionCallSections({
 										className="llm-blocks-section__entry"
 									>
 										<div className="llm-blocks-section__meta">
-											<Badge color="vanilla">{t('function_call_name')}</Badge>
+											<Badge variant="solid" color="secondary">
+												{t('function_call_name')}
+											</Badge>
 											<span>{turn.functionCall.name}</span>
 										</div>
 										<div className="llm-blocks-section__label">
@@ -173,7 +179,9 @@ export function BlocksView({ turns, result }: BlocksViewProps): JSX.Element {
 								<div className="llm-blocks-section">
 									{promptTemplate.version ? (
 										<div className="llm-blocks-section__meta">
-											<Badge color="vanilla">{t('prompt_template_version')}</Badge>
+											<Badge variant="solid" color="secondary">
+												{t('prompt_template_version')}
+											</Badge>
 											<span>{promptTemplate.version}</span>
 										</div>
 									) : null}

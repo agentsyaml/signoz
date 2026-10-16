@@ -56,15 +56,15 @@ function RetrieverDocPanelImpl({
 				key: docKey,
 				label: (
 					<div className="llm-retriever-doc__label">
-						<Badge color="vanilla" variant="outline">
+						<Badge color="secondary" variant="outlined">
 							#{doc.index}
 						</Badge>
 						{doc.score != null ? (
 							<span title={t('retriever_score')}>
 								<Badge
-									className={getScoreClassName(doc.score)}
-									color="vanilla"
-									variant="outline"
+									data-class={getScoreClassName(doc.score)}
+									color="secondary"
+									variant="outlined"
 								>
 									{doc.score.toFixed(3)}
 								</Badge>
@@ -174,9 +174,9 @@ function RetrieverViewImpl({ data, spanId }: RetrieverViewProps): JSX.Element {
 			{querySection}
 			{data.topK !== undefined ? (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-retriever-view__top-k"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-retriever-view__top-k"
 				>
 					{t('retriever_top_k')}: {data.topK}
 				</Badge>

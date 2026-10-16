@@ -58,15 +58,15 @@ function RerankerDocumentPanelImpl({
 				key: docKey,
 				label: (
 					<div className="llm-reranker-doc__label">
-						<Badge color="vanilla" variant="outline">
+						<Badge color="secondary" variant="outlined">
 							#{index}
 						</Badge>
 						{doc.score != null ? (
 							<span title={t('reranker_score')}>
 								<Badge
-									className={getScoreClassName(doc.score)}
-									color="vanilla"
-									variant="outline"
+									data-class={getScoreClassName(doc.score)}
+									color="secondary"
+									variant="outlined"
 								>
 									{doc.score.toFixed(3)}
 								</Badge>
@@ -187,14 +187,16 @@ function RerankerViewImpl({ data, spanId }: RerankerViewProps): JSX.Element {
 			<div className="llm-reranker-view__chips">
 				{data.modelName ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
+						color="secondary"
+						variant="outlined"
+						textTransform="none"
 					>{`${t('reranker_model')}: ${data.modelName}`}</Badge>
 				) : null}
 				{data.topK != null ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
+						color="secondary"
+						variant="outlined"
+						textTransform="none"
 					>{`${t('reranker_top_k')}: ${data.topK}`}</Badge>
 				) : null}
 			</div>

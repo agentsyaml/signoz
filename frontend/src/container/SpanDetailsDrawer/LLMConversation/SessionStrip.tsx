@@ -93,10 +93,10 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 				<button
 					key="session-id"
 					type="button"
-					className="llm-secondary-pill llm-secondary-pill--clickable"
+					data-class="llm-secondary-pill llm-secondary-pill--clickable"
 					onClick={(): void => copyText(sessionId, 'session_id_copied')}
 				>
-					<Badge color="vanilla" variant="outline">
+					<Badge color="secondary" variant="outlined">
 						{t('session_id')}: {truncateMiddle(sessionId)}
 					</Badge>
 				</button>,
@@ -110,10 +110,10 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 				<button
 					key="user-id"
 					type="button"
-					className="llm-secondary-pill llm-secondary-pill--clickable"
+					data-class="llm-secondary-pill llm-secondary-pill--clickable"
 					onClick={(): void => copyText(userId, 'user_id_copied')}
 				>
-					<Badge color="vanilla" variant="outline">
+					<Badge color="secondary" variant="outlined">
 						{t('user_id')}: {truncateMiddle(userId)}
 					</Badge>
 				</button>,
@@ -126,9 +126,9 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 				next.push(
 					<Badge
 						key={`tag-${tag}`}
-						color="vanilla"
-						variant="outline"
-						className="llm-secondary-pill llm-secondary-pill--tag"
+						color="secondary"
+						variant="outlined"
+						data-class="llm-secondary-pill llm-secondary-pill--tag"
 					>
 						{tag}
 					</Badge>,
@@ -139,9 +139,9 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 				next.push(
 					<Badge
 						key="tags-overflow"
-						color="vanilla"
-						variant="outline"
-						className="llm-secondary-pill llm-secondary-pill--tag"
+						color="secondary"
+						variant="outlined"
+						data-class="llm-secondary-pill llm-secondary-pill--tag"
 					>
 						{t('tags_more', { count: tags.length - 5 })}
 					</Badge>,
@@ -157,10 +157,10 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 				<button
 					key="metadata"
 					type="button"
-					className="llm-secondary-pill llm-secondary-pill--clickable"
+					data-class="llm-secondary-pill llm-secondary-pill--clickable"
 					onClick={handleMetadataClick}
 				>
-					<Badge color="vanilla" variant="outline">
+					<Badge color="secondary" variant="outlined">
 						{t('metadata_keys', { count: Object.keys(session.metadata).length })}
 					</Badge>
 				</button>,
@@ -201,7 +201,7 @@ function SessionStripImpl({ session }: SessionStripProps): JSX.Element | null {
 						ref={exceptionTriggerRef}
 						id={exceptionTriggerId}
 						type="button"
-						className="llm-secondary-pill llm-secondary-pill--clickable llm-secondary-pill--exception"
+						data-class="llm-secondary-pill llm-secondary-pill--clickable llm-secondary-pill--exception"
 						aria-expanded={isExceptionOpen}
 						aria-controls={exceptionRegionId}
 						onKeyDown={(event): void => {

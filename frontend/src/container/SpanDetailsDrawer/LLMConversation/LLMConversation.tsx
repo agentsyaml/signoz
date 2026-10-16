@@ -25,6 +25,7 @@ import { AgentView } from './AgentView';
 import { ToolExecutionView } from './ToolExecutionView';
 import { ToolsView } from './ToolsView';
 import './LLMConversation.styles.scss';
+import './LLMConversation.dataclass.scss';
 
 /**
  * Singleton <link> that points at the github-markdown-css single-theme

@@ -81,11 +81,11 @@ function EmbeddingItemPanelImpl({
 				key: itemKey,
 				label: (
 					<div className="llm-embedding-item__label">
-						<Badge color="vanilla" variant="outline">
+						<Badge color="secondary" variant="outlined">
 							{t('embedding_item_index', { index })}
 						</Badge>
 						{item.id ? (
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{item.id}
 							</Badge>
 						) : null}
@@ -225,20 +225,23 @@ function EmbeddingViewImpl({ data, spanId }: EmbeddingViewProps): JSX.Element {
 			<div className="llm-embedding-view__chips">
 				{data.modelName ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
+						color="secondary"
+						variant="outlined"
+						textTransform="none"
 					>{`${t('embedding_model')}: ${data.modelName}`}</Badge>
 				) : null}
 				{shouldShowDimension(dimensionCount) ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
+						color="secondary"
+						variant="outlined"
+						textTransform="none"
 					>{`${t('embedding_dimension')}: d=${dimensionCount}`}</Badge>
 				) : null}
 				{data.encodingFormats && data.encodingFormats.length > 0 ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
+						color="secondary"
+						variant="outlined"
+						textTransform="none"
 					>{`${t('embedding_encoding')}: ${data.encodingFormats.join(', ')}`}</Badge>
 				) : null}
 			</div>

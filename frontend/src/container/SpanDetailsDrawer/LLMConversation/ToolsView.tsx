@@ -37,11 +37,15 @@ function ToolPanelImpl({ tool, panelKey }: ToolPanelProps): JSX.Element {
 				key: panelKey,
 				label: (
 					<div className="llm-tool-def__label">
-						<Badge color="vanilla" className="llm-tool-def__name-tag">
+						<Badge
+							variant="solid"
+							color="secondary"
+							data-class="llm-tool-def__name-tag"
+						>
 							{tool.name}
 						</Badge>
 						{tool.toolType ? (
-							<Badge color="vanilla">
+							<Badge variant="solid" color="secondary">
 								{t('tool_type')}: {tool.toolType}
 							</Badge>
 						) : null}
@@ -53,7 +57,7 @@ function ToolPanelImpl({ tool, panelKey }: ToolPanelProps): JSX.Element {
 							size="small"
 							icon={<Copy />}
 							onClick={handleCopyClick}
-							className="llm-tool-def__copy"
+							className="llm-turn-block__copy"
 						>
 							{t('copy')}
 						</Button>

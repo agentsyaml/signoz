@@ -139,28 +139,36 @@ function PromptViewImpl({ promptTemplate, io }: PromptViewProps): JSX.Element {
 			<div className="prompt-view__header">
 				{promptTemplate?.vendor ? (
 					<Badge
-						className="prompt-view__vendor-tag"
-						color="vanilla"
-						variant="outline"
+						data-class="prompt-view__vendor-tag"
+						color="secondary"
+						variant="outlined"
 					>
 						{`${t('prompt_vendor')}: ${promptTemplate.vendor}`}
 					</Badge>
 				) : null}
 				{promptTemplate?.id ? (
-					<Badge className="prompt-view__id-tag" color="vanilla" variant="outline">
+					<Badge
+						data-class="prompt-view__id-tag"
+						color="secondary"
+						variant="outlined"
+					>
 						{`${t('prompt_id')}: ${promptTemplate.id}`}
 					</Badge>
 				) : null}
 				{promptTemplate?.url ? (
-					<Badge className="prompt-view__url-tag" color="vanilla" variant="outline">
+					<Badge
+						data-class="prompt-view__url-tag"
+						color="secondary"
+						variant="outlined"
+					>
 						{promptTemplate.url}
 					</Badge>
 				) : null}
 				{promptTemplate?.version ? (
 					<Badge
-						className="prompt-view__version-tag"
-						color="vanilla"
-						variant="outline"
+						data-class="prompt-view__version-tag"
+						color="secondary"
+						variant="outlined"
 					>
 						{`${t('prompt_template_version_label')}: ${promptTemplate.version}`}
 					</Badge>

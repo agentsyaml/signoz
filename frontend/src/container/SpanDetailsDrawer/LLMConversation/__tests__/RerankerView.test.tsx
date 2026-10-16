@@ -53,15 +53,24 @@ describe('RerankerView', () => {
 			outputDocuments: [{ content: 'low score', score: 0.21 }],
 		});
 
-		expect(screen.getByText('0.910')).toHaveClass(
+		expect(screen.getByText('0.910').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--high',
 		);
-		expect(screen.getByText('0.610')).toHaveClass(
+		expect(screen.getByText('0.610').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--med',
 		);
-		expect(screen.getByText('0.210')).toHaveClass(
+		expect(screen.getByText('0.210').closest('[data-class]')).toHaveAttribute(
+			'data-class',
 			'llm-retriever-doc__score--low',
 		);
+	});
+
+	it('keeps the plain element classes the styles.scss descendant rules target', () => {
+		renderRerankerView({ inputDocuments: [], outputDocuments: [] });
+
+		expect(document.querySelector('.llm-reranker-view__chips')).not.toBeNull();
 	});
 
 	it('renders metadata and doc id inside expanded document panel', () => {

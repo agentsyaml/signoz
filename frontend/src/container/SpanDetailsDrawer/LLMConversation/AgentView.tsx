@@ -113,9 +113,9 @@ function AgentViewImpl({ agent, io }: AgentViewProps): JSX.Element {
 					{agent?.name ? (
 						<span title={agent.name}>
 							<Badge
-								className="agent-view__name-tag"
-								color="vanilla"
-								variant="outline"
+								data-class="agent-view__name-tag"
+								color="secondary"
+								variant="outlined"
 							>
 								{agent.name}
 							</Badge>
@@ -128,35 +128,35 @@ function AgentViewImpl({ agent, io }: AgentViewProps): JSX.Element {
 							title={agent.id}
 							onClick={handleAgentIdCopy}
 						>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{t('agent_id')}: {truncateMiddle(agent.id, 10, 8)}
 							</Badge>
 						</button>
 					) : null}
 					{agent?.version ? (
 						<span title={agent.version}>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{t('agent_version')}: {agent.version}
 							</Badge>
 						</span>
 					) : null}
 					{agent?.graphNodeName ? (
 						<span title={agent.graphNodeName}>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{t('agent_graph_node_name')}: {agent.graphNodeName}
 							</Badge>
 						</span>
 					) : null}
 					{agent?.graphNodeId ? (
 						<span title={agent.graphNodeId}>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{t('agent_graph_node_id')}: {truncateMiddle(agent.graphNodeId, 10, 8)}
 							</Badge>
 						</span>
 					) : null}
 					{agent?.graphNodeParentId ? (
 						<span title={agent.graphNodeParentId}>
-							<Badge color="vanilla" variant="outline">
+							<Badge color="secondary" variant="outlined">
 								{t('agent_graph_node_parent_id')}:{' '}
 								{truncateMiddle(agent.graphNodeParentId, 10, 8)}
 							</Badge>

@@ -55,22 +55,22 @@ export function MetricsSummary({
 	return (
 		<div className="llm-metrics-summary">
 			{metrics.model && (
-				<Badge color="aqua" className="llm-metrics-summary__tag">
+				<Badge variant="solid" color="info" data-class="llm-metrics-summary__tag">
 					<Bot size={12} className="llm-metrics-summary__icon" />
 					{metrics.model}
 				</Badge>
 			)}
 			{metrics.provider && (
-				<Badge color="robin" className="llm-metrics-summary__tag">
+				<Badge variant="solid" color="info" data-class="llm-metrics-summary__tag">
 					{metrics.provider}
 				</Badge>
 			)}
 			{metrics.inputTokens != null && (
 				<Tooltip title={t('tooltip_input_tokens')}>
 					<Badge
-						color="vanilla"
-						variant="outline"
-						className="llm-metrics-summary__tag"
+						color="secondary"
+						variant="outlined"
+						data-class="llm-metrics-summary__tag"
 					>
 						<ArrowDownToLine size={12} className="llm-metrics-summary__icon" />
 						{t('metric_input_tokens', {
@@ -82,9 +82,9 @@ export function MetricsSummary({
 			{metrics.outputTokens != null && (
 				<Tooltip title={t('tooltip_output_tokens')}>
 					<Badge
-						color="vanilla"
-						variant="outline"
-						className="llm-metrics-summary__tag"
+						color="secondary"
+						variant="outlined"
+						data-class="llm-metrics-summary__tag"
 					>
 						<ArrowUpFromLine size={12} className="llm-metrics-summary__icon" />
 						{t('metric_output_tokens', {
@@ -95,7 +95,11 @@ export function MetricsSummary({
 			)}
 			{metrics.totalTokens != null && (
 				<Tooltip title={t('tooltip_total_tokens')}>
-					<Badge color="amber" className="llm-metrics-summary__tag">
+					<Badge
+						variant="solid"
+						color="warning"
+						data-class="llm-metrics-summary__tag"
+					>
 						<Activity size={12} className="llm-metrics-summary__icon" />
 						{t('metric_total_tokens', {
 							value: metrics.totalTokens.toLocaleString(),
@@ -104,15 +108,15 @@ export function MetricsSummary({
 				</Tooltip>
 			)}
 			{costTotal !== undefined && (
-				<Badge color="sakura" className="llm-metrics-summary__tag">
+				<Badge variant="solid" color="danger" data-class="llm-metrics-summary__tag">
 					{t('metrics_cost')}: {formatCostValue(costTotal, metrics.cost?.unit)}
 				</Badge>
 			)}
 			{metrics.completionTokenDetails?.reasoning !== undefined && (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-metrics-summary__tag"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-metrics-summary__tag"
 				>
 					{t('metrics_reasoning_tokens')}:{' '}
 					{metrics.completionTokenDetails.reasoning.toLocaleString()}
@@ -120,9 +124,9 @@ export function MetricsSummary({
 			)}
 			{metrics.promptTokenDetails?.cacheRead !== undefined && (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-metrics-summary__tag"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-metrics-summary__tag"
 				>
 					{t('metrics_cache_read')}:{' '}
 					{metrics.promptTokenDetails.cacheRead.toLocaleString()}
@@ -130,9 +134,9 @@ export function MetricsSummary({
 			)}
 			{metrics.promptTokenDetails?.cacheWrite !== undefined && (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-metrics-summary__tag"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-metrics-summary__tag"
 				>
 					{t('metrics_cache_write')}:{' '}
 					{metrics.promptTokenDetails.cacheWrite.toLocaleString()}
@@ -140,9 +144,9 @@ export function MetricsSummary({
 			)}
 			{metrics.promptTokenDetails?.audio !== undefined && (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-metrics-summary__tag"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-metrics-summary__tag"
 				>
 					{t('metrics_audio_input_tokens')}:{' '}
 					{metrics.promptTokenDetails.audio.toLocaleString()}
@@ -150,9 +154,9 @@ export function MetricsSummary({
 			)}
 			{metrics.completionTokenDetails?.audio !== undefined && (
 				<Badge
-					color="vanilla"
-					variant="outline"
-					className="llm-metrics-summary__tag"
+					color="secondary"
+					variant="outlined"
+					data-class="llm-metrics-summary__tag"
 				>
 					{t('metrics_audio_output_tokens')}:{' '}
 					{metrics.completionTokenDetails.audio.toLocaleString()}

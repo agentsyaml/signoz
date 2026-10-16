@@ -147,7 +147,10 @@ describe('SessionStrip', () => {
 		const trigger = screen.getByRole('button', {
 			name: 'exception_label: ValueError',
 		});
-		expect(trigger).toHaveClass('llm-secondary-pill--exception');
+		expect(trigger).toHaveAttribute(
+			'data-class',
+			expect.stringContaining('llm-secondary-pill--exception'),
+		);
 		expect(trigger).not.toHaveAttribute('aria-haspopup');
 		expect(trigger).toHaveAttribute('aria-expanded', 'false');
 		expect(trigger).toHaveAttribute('id');

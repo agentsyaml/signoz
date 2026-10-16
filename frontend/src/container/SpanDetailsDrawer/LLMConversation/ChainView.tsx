@@ -77,9 +77,9 @@ function ChainViewImpl({ chain, io }: ChainViewProps): JSX.Element {
 			<div className="chain-view__header">
 				{chain?.name ? (
 					<Badge
-						color="vanilla"
-						variant="outline"
-						className="chain-view__name-tag"
+						color="secondary"
+						variant="outlined"
+						data-class="chain-view__name-tag"
 					>{`${t('chain_name')}: ${chain.name}`}</Badge>
 				) : null}
 			</div>
