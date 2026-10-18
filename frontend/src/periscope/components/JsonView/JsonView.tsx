@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import MEditor, { EditorProps, Monaco } from '@monaco-editor/react';
+import MEditor from '@monaco-editor/react';
+import type { EditorProps, Monaco } from '@monaco-editor/react';
 import { Color } from '@signozhq/design-tokens';
 import { WrapText } from '@signozhq/icons';
 import { Button } from '@signozhq/ui/button';
@@ -7,6 +8,7 @@ import { Switch } from '@signozhq/ui/switch';
 import { Tooltip } from '@signozhq/ui/tooltip';
 import { Typography } from '@signozhq/ui/typography';
 import { useIsDarkMode } from 'hooks/useDarkMode';
+import { ReadOnlyJson } from './ReadOnlyJson';
 
 import './JsonView.styles.scss';
 
@@ -79,7 +81,7 @@ const minimalChromeOptions: EditorProps['options'] = {
 
 const noop = (): void => {};
 
-function JsonView({
+function MonacoJsonView({
 	data,
 	height = '575px',
 	fontSize = 12,
@@ -156,6 +158,19 @@ function JsonView({
 			</div>
 		</div>
 	);
+}
+
+function JsonView(props: JsonViewProps): JSX.Element {
+	if (props.compact && props.minimalChrome) {
+		return (
+			<ReadOnlyJson
+				data={props.data}
+				height={props.height ?? '575px'}
+				fontSize={props.fontSize ?? 12}
+			/>
+		);
+	}
+	return <MonacoJsonView {...props} />;
 }
 
 export default memo(JsonView);
