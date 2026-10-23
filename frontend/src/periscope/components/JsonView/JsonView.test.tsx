@@ -136,21 +136,23 @@ describe('JsonView', () => {
 			const firstKeyAdds = firstKey.added.length;
 			const second = renderDirect(
 				<JsonView
-					data={'{"second":-2.5e+3,"ok":true,"empty":null}'}
+					data={String.raw`{"second" : "a\"b\u263a\\c","number":-2.5e+3,"ok":true,"empty":null,"unfinished":"value`}
 					compact
 					minimalChrome
 				/>,
 			);
 			expect(registry.get('signoz-json-key')).toBe(firstKey);
-			expect(firstKey.added).toHaveLength(firstKeyAdds + 3);
+			expect(firstKey.added).toHaveLength(firstKeyAdds + 5);
 			expect(registry.get('signoz-json-key')?.ranges.map(String)).toStrictEqual([
 				'"first"',
 				'"second"',
+				'"number"',
 				'"ok"',
 				'"empty"',
+				'"unfinished"',
 			]);
 			expect(registry.get('signoz-json-string')?.ranges.map(String)).toStrictEqual(
-				['"a\\\"b"'],
+				['"a\\"b"', String.raw`"a\"b\u263a\\c"`, '"value'],
 			);
 			expect(registry.get('signoz-json-number')?.ranges.map(String)).toStrictEqual(
 				['-2.5e+3'],
@@ -164,21 +166,25 @@ describe('JsonView', () => {
 				</React.StrictMode>,
 			);
 			expect(registry.get('signoz-json-key')).toBe(firstKey);
-			expect(firstKey.added).toHaveLength(firstKeyAdds + 4);
+			expect(firstKey.added).toHaveLength(firstKeyAdds + 6);
 			expect(registry.get('signoz-json-key')?.ranges.map(String)).toStrictEqual([
 				'"second"',
+				'"number"',
 				'"ok"',
 				'"empty"',
+				'"unfinished"',
 				'"updated"',
 			]);
 			second.unmount();
 			expect(registry.get('signoz-json-key')).toBe(firstKey);
-			expect(firstKey.added).toHaveLength(firstKeyAdds + 4);
+			expect(firstKey.added).toHaveLength(firstKeyAdds + 6);
 			expect(firstKey.deletedText).toStrictEqual([
 				'"first"',
 				'"second"',
+				'"number"',
 				'"ok"',
 				'"empty"',
+				'"unfinished"',
 			]);
 			expect(registry.get('signoz-json-key')?.ranges.map(String)).toStrictEqual([
 				'"updated"',

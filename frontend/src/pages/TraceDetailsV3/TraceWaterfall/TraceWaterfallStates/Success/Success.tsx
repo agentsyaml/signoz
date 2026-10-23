@@ -949,6 +949,7 @@ function Success(props: ISuccessProps): JSX.Element {
 					<div className={styles.statusCol}>
 						{virtualItems.map((virtualRow) => {
 							const span = spans[virtualRow.index];
+							const spanKind = detectSpanKindFromMaps(span.attributes, span.resource);
 							const { isSelected, isDimmed, isSelectedNonMatching, isMatching } =
 								getSpanStateClasses(
 									span.span_id,
@@ -977,7 +978,9 @@ function Success(props: ISuccessProps): JSX.Element {
 									onMouseLeave={(): void => applyHoverClass(null)}
 									onClick={(): void => handleSpanClick(span)}
 								>
-									<SpanHintBadge span={span} />
+									{(spanKind === 'UNKNOWN' || !isAiSpan(span)) && (
+										<SpanHintBadge span={span} />
+									)}
 								</div>
 							);
 						})}
