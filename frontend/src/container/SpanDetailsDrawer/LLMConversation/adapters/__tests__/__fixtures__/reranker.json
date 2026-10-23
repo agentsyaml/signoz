@@ -1,0 +1,21 @@
+{
+	"reranker.model_name": "rerank-v1",
+	"reranker.query": "find the most relevant docs",
+	"reranker.top_k": "2",
+	"reranker.input_documents.1.document.id": "input-2",
+	"reranker.input_documents.1.document.content": "second input document",
+	"reranker.input_documents.1.document.score": "0.51",
+	"reranker.input_documents.1.document.metadata": "{\"source\":\"kb\",\"rank\":2}",
+	"reranker.input_documents.0.document.id": "input-1",
+	"reranker.input_documents.0.document.content": "first input document",
+	"reranker.input_documents.0.document.score": "0.87",
+	"reranker.input_documents.0.document.metadata": "{\"source\":\"faq\",\"rank\":1}",
+	"reranker.output_documents.1.document.id": "output-2",
+	"reranker.output_documents.1.document.content": "second output document",
+	"reranker.output_documents.1.document.score": "0.32",
+	"reranker.output_documents.1.document.metadata": "not-json",
+	"reranker.output_documents.0.document.id": "output-1",
+	"reranker.output_documents.0.document.content": "first output document",
+	"reranker.output_documents.0.document.score": "0.94",
+	"reranker.output_documents.0.document.metadata": "{\"source\":\"reranked\",\"position\":1}"
+}

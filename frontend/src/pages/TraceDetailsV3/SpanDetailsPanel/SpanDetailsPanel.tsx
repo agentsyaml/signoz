@@ -1,7 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@signozhq/ui/badge';
 import { Tabs, type TabsItemProps } from '@signozhq/ui/tabs';
-import { Bookmark, ChartColumnBig, List, ScrollText } from '@signozhq/icons';
+import {
+	Bookmark,
+	ChartColumnBig,
+	List,
+	MessageSquare,
+	ScrollText,
+} from '@signozhq/icons';
 import { Skeleton } from 'antd';
 import { DetailsHeader, DetailsPanelDrawer } from 'components/DetailsPanel';
 import { HeaderAction } from 'components/DetailsPanel/DetailsHeader/DetailsHeader';
@@ -14,6 +20,8 @@ import {
 import ROUTES from 'constants/routes';
 import InfraMetrics from 'container/LogDetailedView/InfraMetrics/InfraMetrics';
 import { getEmptyLogsListConfig } from 'container/LogsExplorerList/utils';
+import { isAISpan } from 'container/SpanDetailsDrawer/LLMConversation/adapters/spanKind';
+import { LLMConversationView } from 'container/SpanDetailsDrawer/LLMConversation/LLMConversation';
 import dayjs from 'dayjs';
 import {
 	TraceDetailEventKeys,
@@ -48,6 +56,7 @@ import Events from './Events/Events';
 import OpenInLogsExplorer from './SpanLogs/OpenInLogsExplorer';
 import SpanLogs from './SpanLogs/SpanLogs';
 import { useSpanContextLogs } from './SpanLogs/useSpanContextLogs';
+import SpanAIMessages from './SpanAIMessages/SpanAIMessages';
 import SpanSummary from './SpanSummary';
 
 import styles from './SpanDetailsPanel.module.scss';
@@ -93,7 +102,6 @@ function SpanDetailsContent({
 		},
 		[logTraceEvent, selectedSpan.span_id],
 	);
-
 	// One-time conversion of any V2-format value still living in the
 	// `span_details_pinned_attributes` user pref into V3 nested-path format.
 	useMigratePinnedAttributes(selectedSpan);
@@ -104,6 +112,24 @@ function SpanDetailsContent({
 		() => getSpanDisplayData(selectedSpan),
 		[selectedSpan],
 	);
+
+	const llmTagMap = useMemo<Record<string, string>>(() => {
+		const coerce = (value: unknown): string =>
+			typeof value === 'string' ? value : (JSON.stringify(value) ?? '');
+		const tags: Record<string, string> = {};
+		Object.entries(selectedSpan.resource ?? {}).forEach(([key, value]) => {
+			if (value != null) {
+				tags[key] = coerce(value);
+			}
+		});
+		Object.entries(selectedSpan.attributes ?? {}).forEach(([key, value]) => {
+			if (value != null) {
+				tags[key] = coerce(value);
+			}
+		});
+		return tags;
+	}, [selectedSpan]);
+	const isAI = useMemo(() => isAISpan(llmTagMap), [llmTagMap]);
 
 	// Map span attribute actions to PrettyView actions format.
 	// Use the last key in fieldKeyPath (the actual attribute key), not the full display path.
@@ -196,6 +222,16 @@ function SpanDetailsContent({
 			spanTimestamp: dayjs(selectedSpan.timestamp).format(),
 		};
 	}, [selectedSpan]);
+	const effectiveTab =
+		(activeTab === 'metrics' && !infraMetadata) ||
+		(activeTab === 'llm-conversation' && !isAI)
+			? 'overview'
+			: activeTab;
+	useEffect(() => {
+		if (effectiveTab !== activeTab) {
+			setActiveTab(effectiveTab);
+		}
+	}, [activeTab, effectiveTab]);
 
 	const handleExplorerPageRedirect = useCallback((): void => {
 		const startTimeMs = (traceStartTime || 0) - FIVE_MINUTES_IN_MS;
@@ -281,6 +317,7 @@ function SpanDetailsContent({
 			traceEndTime={traceEndTime}
 		/>
 	);
+	const aiMessages = <SpanAIMessages span={selectedSpan} />;
 	const eventsCount = selectedSpan.events?.length || 0;
 
 	const spanDetailTabs: TabsItemProps[] = [
@@ -291,6 +328,7 @@ function SpanDetailsContent({
 			children: (
 				<>
 					{isWide && summary}
+					{isWide && <div className={styles.tabAiMessages}>{aiMessages}</div>}
 					<DataViewer
 						data={spanDisplayData}
 						drawerKey="trace-details"
@@ -365,10 +403,26 @@ function SpanDetailsContent({
 		});
 	}
 
+	if (isAI) {
+		spanDetailTabs.push({
+			key: 'llm-conversation',
+			label: 'AI',
+			prefixIcon: <MessageSquare size={14} />,
+			children: (
+				<LLMConversationView
+					tagMap={llmTagMap}
+					events={selectedSpan.events}
+					spanId={selectedSpan.span_id}
+				/>
+			),
+		});
+	}
+
 	return (
 		<>
 			<div className={styles.panelBody} ref={bodyRef}>
 				{!isWide && <div className={styles.detailsSection}>{summary}</div>}
+				{!isWide && aiMessages}
 
 				<div className={styles.tabsSection}>
 					<Tabs
@@ -376,9 +430,8 @@ function SpanDetailsContent({
 						orientation="horizontal"
 						alignment="start"
 						className={styles.tabsScroll}
-						value={activeTab}
+						value={effectiveTab}
 						onChange={handleTabChange}
-						noTabContentPadding
 						items={spanDetailTabs}
 					/>
 				</div>
