@@ -93,23 +93,27 @@ function stringEnd(source: string, start: number): number {
 	return Math.min(index + 1, source.length);
 }
 
+function isDigit(character: string | undefined): boolean {
+	return character !== undefined && character >= '0' && character <= '9';
+}
+
 function numberEnd(source: string, start: number): number {
 	let index = start + (source[start] === '-' ? 1 : 0);
-	while (/\d/.test(source[index] ?? '')) {
+	while (isDigit(source[index])) {
 		index++;
 	}
 	if (source[index] === '.') {
 		index++;
-		while (/\d/.test(source[index] ?? '')) {
+		while (isDigit(source[index])) {
 			index++;
 		}
 	}
-	if (/[eE]/.test(source[index] ?? '')) {
+	if (source[index] === 'e' || source[index] === 'E') {
 		index++;
-		if (/[+-]/.test(source[index] ?? '')) {
+		if (source[index] === '+' || source[index] === '-') {
 			index++;
 		}
-		while (/\d/.test(source[index] ?? '')) {
+		while (isDigit(source[index])) {
 			index++;
 		}
 	}
@@ -117,14 +121,22 @@ function numberEnd(source: string, start: number): number {
 }
 
 function literalAt(source: string, index: number): string | undefined {
-	return ['true', 'false', 'null'].find((literal) =>
-		source.startsWith(literal, index),
-	);
+	const first = source[index];
+	if (first === 't' && source.startsWith('true', index)) {
+		return 'true';
+	}
+	if (first === 'f' && source.startsWith('false', index)) {
+		return 'false';
+	}
+	if (first === 'n' && source.startsWith('null', index)) {
+		return 'null';
+	}
+	return undefined;
 }
 
 function createRanges(node: Text, source: string): Ranges {
 	const ranges: Ranges = { key: [], string: [], number: [], literal: [] };
-	for (let index = 0; index < source.length; ) {
+	for (let index = 0; index < source.length;) {
 		const start = index;
 		if (source[index] === '"') {
 			index = stringEnd(source, index);
@@ -139,7 +151,7 @@ function createRanges(node: Text, source: string): Ranges {
 				start,
 				index,
 			);
-		} else if (source[index] === '-' || /\d/.test(source[index])) {
+		} else if (source[index] === '-' || isDigit(source[index])) {
 			index = numberEnd(source, index);
 			addRange(node, ranges, 'number', start, index);
 		} else {
