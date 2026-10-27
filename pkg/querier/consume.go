@@ -62,7 +62,11 @@ func unwrapVariant(name string, val any) any {
 // series. JSON goes through encoding/json for its sorted map keys: ClickHouse groups documents by
 // structure, so two rows it considers equal have to produce the same label.
 func labelValue(val any) string {
-	val = unwrapVariant("", val)
+	if jsonValue, ok := val.(telemetrystoretypes.JSONValue); ok {
+		val = jsonValue.Flatten()
+	} else {
+		val = unwrapVariant("", val)
+	}
 	if val == nil {
 		return ""
 	}

@@ -18,7 +18,12 @@ function readNumber(value: string | undefined): number | undefined {
 		return undefined;
 	}
 	const n = Number(value);
-	return Number.isNaN(n) ? undefined : n;
+	return Number.isFinite(n) ? n : undefined;
+}
+
+function readTokenCount(value: string | undefined): number | undefined {
+	const n = readNumber(value);
+	return n !== undefined && n >= 0 ? n : undefined;
 }
 
 function normalizeRole(
@@ -143,6 +148,15 @@ function getPartString(
 		}
 	}
 	return undefined;
+}
+
+function readScalarString(value: unknown): string | undefined {
+	if (typeof value === 'string') {
+		return value || undefined;
+	}
+	return typeof value === 'number' && Number.isFinite(value)
+		? String(value)
+		: undefined;
 }
 
 function getImageUrl(part: Record<string, unknown>): string | undefined {
@@ -391,13 +405,14 @@ function parseMessages(
 					}
 					const t = tc as Record<string, unknown>;
 					const fn = t.function as Record<string, unknown> | undefined;
-					if (!fn?.name) {
+					const functionName = readScalarString(fn?.name);
+					if (!fn || !functionName) {
 						return;
 					}
 					const fallbackId = `${spanId}-${channel}${msgIdx}-tc${tcIdx}`;
 					explicitToolCalls.push({
-						id: String(t.id ?? fallbackId),
-						functionName: String(fn.name),
+						id: readScalarString(t.id) ?? fallbackId,
+						functionName,
 						arguments: parseToolArguments(fn.arguments),
 					});
 				});
@@ -414,8 +429,9 @@ function parseMessages(
 				turn.toolCalls = allToolCalls;
 			}
 
-			if (msg.tool_call_id) {
-				turn.toolCallId = String(msg.tool_call_id);
+			const toolCallId = readScalarString(msg.tool_call_id);
+			if (toolCallId) {
+				turn.toolCallId = toolCallId;
 			} else {
 				const idFromParts = extractToolCallIdFromParts(msg.parts);
 				if (idFromParts) {
@@ -517,7 +533,7 @@ function extractSecondaryMetadata(
 	if (responseId !== undefined) {
 		result.responseId = responseId;
 	}
-	if (timeToFirstChunk !== undefined) {
+	if (timeToFirstChunk !== undefined && timeToFirstChunk >= 0) {
 		result.timeToFirstChunk = timeToFirstChunk;
 	}
 	if (conversationId !== undefined) {
@@ -702,20 +718,20 @@ export function applyGenAiAdapter(
 	}
 
 	const inputTokens =
-		readNumber(tagMap['gen_ai.usage.input_tokens']) ??
-		readNumber(tagMap['gen_ai.usage.prompt_tokens']);
+		readTokenCount(tagMap['gen_ai.usage.input_tokens']) ??
+		readTokenCount(tagMap['gen_ai.usage.prompt_tokens']);
 	if (inputTokens != null) {
 		metrics.inputTokens = inputTokens;
 	}
 
 	const outputTokens =
-		readNumber(tagMap['gen_ai.usage.output_tokens']) ??
-		readNumber(tagMap['gen_ai.usage.completion_tokens']);
+		readTokenCount(tagMap['gen_ai.usage.output_tokens']) ??
+		readTokenCount(tagMap['gen_ai.usage.completion_tokens']);
 	if (outputTokens != null) {
 		metrics.outputTokens = outputTokens;
 	}
 
-	const totalTokens = readNumber(tagMap['gen_ai.usage.total_tokens']);
+	const totalTokens = readTokenCount(tagMap['gen_ai.usage.total_tokens']);
 	if (totalTokens != null) {
 		metrics.totalTokens = totalTokens;
 	} else if (metrics.inputTokens != null || metrics.outputTokens != null) {
@@ -724,14 +740,16 @@ export function applyGenAiAdapter(
 	}
 
 	metrics.promptTokenDetails = mergeTokenDetails(metrics.promptTokenDetails, {
-		cacheRead: readNumber(tagMap['gen_ai.usage.cache_read.input_tokens']),
-		cacheWrite: readNumber(tagMap['gen_ai.usage.cache_creation.input_tokens']),
+		cacheRead: readTokenCount(tagMap['gen_ai.usage.cache_read.input_tokens']),
+		cacheWrite: readTokenCount(
+			tagMap['gen_ai.usage.cache_creation.input_tokens'],
+		),
 	});
 
 	metrics.completionTokenDetails = mergeTokenDetails(
 		metrics.completionTokenDetails,
 		{
-			reasoning: readNumber(tagMap['gen_ai.usage.reasoning.output_tokens']),
+			reasoning: readTokenCount(tagMap['gen_ai.usage.reasoning.output_tokens']),
 		},
 	);
 

@@ -32,11 +32,16 @@ const FINISH_REASON_TONES: Record<string, MessageTone> = {
 
 /** Undefined for missing or unknown roles, which render headerless. */
 export function getRoleLabel(role?: string): string | undefined {
-	return role ? ROLE_LABELS[role] : undefined;
+	return role && Object.hasOwn(ROLE_LABELS, role)
+		? ROLE_LABELS[role]
+		: undefined;
 }
 
 export function getFinishReasonTone(reason?: string | null): MessageTone {
-	return (reason && FINISH_REASON_TONES[reason.toLowerCase()]) || 'info';
+	const normalizedReason = reason?.toLowerCase();
+	return normalizedReason && Object.hasOwn(FINISH_REASON_TONES, normalizedReason)
+		? FINISH_REASON_TONES[normalizedReason]
+		: 'info';
 }
 
 /** Parses objects and arrays only; scalars and invalid JSON return undefined. */

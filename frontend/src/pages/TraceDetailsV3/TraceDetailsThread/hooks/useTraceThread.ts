@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery } from 'react-query';
 import {
 	getGetTraceThreadQueryKey,
@@ -25,6 +25,12 @@ interface UseTraceThreadResult {
 	spansAboveFirstPage: number;
 	isLoading: boolean;
 	isError: boolean;
+	isNotFound: boolean;
+	isInitialError: boolean;
+	pageError?: 'next' | 'previous';
+	isRefetchError: boolean;
+	retryPage: () => Promise<unknown>;
+	refetch: () => Promise<unknown>;
 	hasNextPage: boolean;
 	hasPreviousPage: boolean;
 	isFetchingNextPage: boolean;
@@ -37,6 +43,10 @@ export function useTraceThread({
 	traceId,
 	interestedSpanId,
 }: UseTraceThreadOptions): UseTraceThreadResult {
+	const [pageFailure, setPageFailure] = useState<{
+		key: string;
+		direction: 'next' | 'previous';
+	}>();
 	const query = useInfiniteQuery({
 		queryKey: getGetTraceThreadQueryKey(
 			{ traceID: traceId },
@@ -80,6 +90,9 @@ export function useTraceThread({
 	// Not from pageParams: a react-query v3 refetch rebuilds later pages with `after` cursors.
 	const anchorRef = useRef<{ key: string; spanId: string }>();
 	const anchorKey = `${traceId}:${interestedSpanId ?? ''}`;
+	const activeKey = useRef(anchorKey);
+	activeKey.current = anchorKey;
+	useEffect(() => setPageFailure(undefined), [anchorKey]);
 	const spansAboveFirstPage = useMemo(() => {
 		if (spans.length === 0) {
 			return 0;
@@ -93,17 +106,46 @@ export function useTraceThread({
 			spans.findIndex((span) => span.span_id === spanId),
 		);
 	}, [spans, anchorKey]);
+	const fetchPage = async (
+		direction: 'next' | 'previous',
+		key = anchorKey,
+	): Promise<unknown> => {
+		const result = await (direction === 'next'
+			? query.fetchNextPage()
+			: query.fetchPreviousPage());
+		if (activeKey.current === key) {
+			setPageFailure(result.isError ? { key, direction } : undefined);
+		}
+		return result;
+	};
+	const fetchNextPage = (): Promise<unknown> => fetchPage('next');
+	const fetchPreviousPage = (): Promise<unknown> => fetchPage('previous');
+	const pageError =
+		pageFailure?.key === anchorKey ? pageFailure.direction : undefined;
+	const refetch = async (): Promise<unknown> => {
+		const result = await query.refetch();
+		if (!result.isError) {
+			setPageFailure(undefined);
+		}
+		return result;
+	};
 
 	return {
 		spans,
 		spansAboveFirstPage,
 		isLoading: query.isLoading,
 		isError: query.isError,
+		isNotFound: isNotFoundError(query.error),
+		isInitialError: query.isLoadingError,
+		isRefetchError: query.isRefetchError,
+		pageError,
+		retryPage: () => fetchPage(pageError ?? 'next', anchorKey),
+		refetch,
 		hasNextPage: !!query.hasNextPage,
 		hasPreviousPage: !!query.hasPreviousPage,
 		isFetchingNextPage: query.isFetchingNextPage,
 		isFetchingPreviousPage: query.isFetchingPreviousPage,
-		fetchNextPage: query.fetchNextPage,
-		fetchPreviousPage: query.fetchPreviousPage,
+		fetchNextPage,
+		fetchPreviousPage,
 	};
 }

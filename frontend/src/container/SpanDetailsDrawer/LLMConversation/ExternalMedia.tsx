@@ -27,6 +27,8 @@ const MEDIA_DETAILS_STYLE: CSSProperties = {
 	gap: 6,
 };
 
+const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+
 interface ExternalMediaProps {
 	type: 'image' | 'audio';
 	url?: string;
@@ -71,6 +73,7 @@ export function ExternalMedia({
 		const controller = new AbortController();
 		let active = true;
 		let objectUrl: string | null = null;
+		let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
 		async function loadAudio(): Promise<void> {
 			try {
@@ -80,11 +83,41 @@ export function ExternalMedia({
 					mode: 'cors',
 					signal: controller.signal,
 				});
+				if (!active) {
+					void response.body?.cancel().catch(() => undefined);
+					return;
+				}
 				if (!response.ok) {
 					throw new Error('Audio request failed');
 				}
 
-				const blob = await response.blob();
+				const contentLength = Number(response.headers.get('content-length'));
+				if (Number.isFinite(contentLength) && contentLength > MAX_AUDIO_BYTES) {
+					void response.body?.cancel().catch(() => undefined);
+					throw new Error('Audio exceeds size limit');
+				}
+				if (!response.body) {
+					throw new Error('Audio response has no body');
+				}
+
+				reader = response.body.getReader();
+				const chunks: ArrayBuffer[] = [];
+				let bytesRead = 0;
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						break;
+					}
+					bytesRead += value.byteLength;
+					if (bytesRead > MAX_AUDIO_BYTES) {
+						void reader.cancel().catch(() => undefined);
+						throw new Error('Audio exceeds size limit');
+					}
+					chunks.push(new Uint8Array(value).buffer);
+				}
+				const blob = new Blob(chunks, {
+					type: response.headers.get('content-type') ?? '',
+				});
 				if (!active) {
 					return;
 				}
@@ -103,6 +136,9 @@ export function ExternalMedia({
 		return (): void => {
 			active = false;
 			controller.abort();
+			if (reader) {
+				void reader.cancel().catch(() => undefined);
+			}
 			if (objectUrl) {
 				URL.revokeObjectURL(objectUrl);
 			}

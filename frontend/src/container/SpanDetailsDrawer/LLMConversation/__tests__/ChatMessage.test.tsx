@@ -1,4 +1,5 @@
 import React from 'react';
+import { ReadableStream } from 'stream/web';
 import { render as renderWithoutProviders } from '@testing-library/react';
 import { render, screen, fireEvent, waitFor } from 'tests/test-utils';
 import { ChatMessage } from '../ChatMessage';
@@ -147,7 +148,13 @@ describe('ChatMessage', () => {
 		fetchMock.mockReset();
 		fetchMock.mockResolvedValue({
 			ok: true,
-			blob: () => Promise.resolve(new Blob(['audio'])),
+			headers: { get: () => null },
+			body: new ReadableStream({
+				start(controller): void {
+					controller.enqueue(new Uint8Array([97, 117, 100, 105, 111]));
+					controller.close();
+				},
+			}),
 		});
 		createObjectURLMock.mockClear();
 		revokeObjectURLMock.mockClear();

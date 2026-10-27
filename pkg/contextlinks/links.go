@@ -87,7 +87,7 @@ func PrepareRuleFilterExpression(condition *ruletypes.RuleCondition, signal tele
 func resolveSelectedQueryNames(condition *ruletypes.RuleCondition) ([]string, error) {
 	selected := condition.SelectedQueryName()
 	for _, query := range condition.CompositeQuery.Queries {
-		if query.GetQueryName() != selected {
+		if !strings.EqualFold(query.GetQueryName(), selected) {
 			continue
 		}
 		if formula, ok := query.Spec.(qbtypes.QueryBuilderFormula); ok {
@@ -107,7 +107,7 @@ func prepareFilterExpressions[T any](queries []qbtypes.QueryEnvelope, names []st
 		spec, ok := query.Spec.(qbtypes.QueryBuilderQuery[T])
 		// spec.Disabled is deliberately not checked: a formula's inputs are
 		// usually hidden in the UI but must still make it into the link
-		if !ok || spec.Signal != signal || !slices.Contains(names, spec.Name) {
+		if !ok || spec.Signal != signal || !containsFold(names, spec.Name) {
 			continue
 		}
 		filterExpr := ""
@@ -117,4 +117,13 @@ func prepareFilterExpressions[T any](queries []qbtypes.QueryEnvelope, names []st
 		expressions = append(expressions, PrepareFilterExpression(labels, filterExpr, spec.GroupBy))
 	}
 	return expressions
+}
+
+func containsFold(values []string, value string) bool {
+	for _, candidate := range values {
+		if strings.EqualFold(candidate, value) {
+			return true
+		}
+	}
+	return false
 }

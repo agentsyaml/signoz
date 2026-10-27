@@ -46,6 +46,10 @@ type MessageBucket = {
 	functionCallArgs?: string;
 };
 
+type StringField<T> = {
+	[K in keyof T]: T[K] extends string | undefined ? K : never;
+}[keyof T];
+
 function parseIndex(s: string | undefined): number | null {
 	if (s == null) {
 		return null;
@@ -76,127 +80,138 @@ function normalizeRole(
 	return null;
 }
 
+function collectBucket(
+	buckets: Map<number, MessageBucket>,
+	prefix: string,
+	key: string,
+	value: string,
+): void {
+	const segments = key.slice(prefix.length).split('.');
+	const index = parseIndex(segments[0]);
+	if (index == null || segments[1] !== 'message' || !segments[2]) {
+		return;
+	}
+	let bucket = buckets.get(index);
+	if (!bucket) {
+		bucket = { toolCalls: new Map(), contentParts: new Map() };
+		buckets.set(index, bucket);
+	}
+	const fields: Partial<Record<string, StringField<MessageBucket>>> = {
+		role: 'role',
+		content: 'content',
+		name: 'name',
+		tool_call_id: 'toolCallId',
+		function_call_name: 'functionCallName',
+		function_call_arguments_json: 'functionCallArgs',
+	};
+	const field = segments[2];
+	const property = fields[field];
+	if (Object.hasOwn(fields, field) && property) {
+		bucket[property] = value;
+	} else if (segments[2] === 'contents') {
+		collectContentPart(bucket, segments, value);
+	} else if (segments[2] === 'tool_calls') {
+		collectToolCall(bucket, segments, value);
+	}
+}
+
+function collectAudioField(
+	part: ContentPart,
+	field: string,
+	value: string,
+): void {
+	const audioFields: Partial<Record<string, StringField<ContentPart>>> = {
+		url: 'audioUrl',
+		mime_type: 'audioMimeType',
+		transcript: 'audioTranscript',
+	};
+	const property = audioFields[field];
+	if (Object.hasOwn(audioFields, field) && property) {
+		part[property] = value;
+	}
+}
+
+function collectContentPart(
+	bucket: MessageBucket,
+	segments: string[],
+	value: string,
+): void {
+	const index = parseIndex(segments[3]);
+	if (index == null) {
+		return;
+	}
+	const part = bucket.contentParts.get(index) ?? {};
+	bucket.contentParts.set(index, part);
+	const field = segments[5];
+	const simpleFields: Partial<Record<string, StringField<ContentPart>>> = {
+		type: 'type',
+		text: 'text',
+		id: 'id',
+		signature: 'signature',
+		data: 'data',
+		encrypted_content: 'encryptedContent',
+	};
+	const simpleField = simpleFields[field];
+	if (
+		segments[4] === 'message_content' &&
+		Object.hasOwn(simpleFields, field) &&
+		simpleField
+	) {
+		part[simpleField] = value;
+	} else if (
+		segments[4] === 'message_content' &&
+		field === 'image' &&
+		(segments[6] === 'url' || (segments[6] === 'image' && segments[7] === 'url'))
+	) {
+		part.imageUrl = value;
+	} else if (segments[4] === 'message_content' && field === 'audio') {
+		collectAudioField(part, segments[6] ?? '', value);
+	} else if (segments[4] === 'tool_call') {
+		const fieldName = segments.slice(5).join('.');
+		if (fieldName === 'id') {
+			part.toolCallId = value;
+		} else if (fieldName === 'function.name') {
+			part.toolCallName = value;
+		} else if (fieldName === 'function.arguments') {
+			part.toolCallArgs = value;
+		}
+	}
+}
+
+function collectToolCall(
+	bucket: MessageBucket,
+	segments: string[],
+	value: string,
+): void {
+	const index = parseIndex(segments[3]);
+	if (index == null) {
+		return;
+	}
+	const call = bucket.toolCalls.get(index) ?? {};
+	bucket.toolCalls.set(index, call);
+	const field = segments.slice(4).join('.');
+	if (field === 'id' || field === 'tool_call.id') {
+		call.id = value;
+	} else if (field === 'function.name' || field === 'tool_call.function.name') {
+		call.functionName = value;
+	} else if (
+		field === 'function.arguments' ||
+		field === 'tool_call.function.arguments'
+	) {
+		call.argumentsRaw = value;
+	}
+}
+
 function collectBuckets(
 	tagMap: Record<string, string>,
 	prefix: string,
 ): Map<number, MessageBucket> {
 	const buckets = new Map<number, MessageBucket>();
-
 	for (const [key, value] of Object.entries(tagMap)) {
-		if (!key.startsWith(prefix)) {
-			continue;
-		}
-		const tail = key.slice(prefix.length);
-		const segments = tail.split('.');
-		const msgIndex = parseIndex(segments[0]);
-		if (msgIndex == null) {
-			continue;
-		}
-		if (segments[1] !== 'message') {
-			continue;
-		}
-		const field = segments[2];
-		if (!field) {
-			continue;
-		}
-
-		let bucket = buckets.get(msgIndex);
-		if (!bucket) {
-			bucket = { toolCalls: new Map(), contentParts: new Map() };
-			buckets.set(msgIndex, bucket);
-		}
-
-		if (field === 'role') {
-			bucket.role = value;
-		} else if (field === 'content') {
-			bucket.content = value;
-		} else if (field === 'name') {
-			bucket.name = value;
-		} else if (field === 'tool_call_id') {
-			bucket.toolCallId = value;
-		} else if (field === 'function_call_name') {
-			bucket.functionCallName = value;
-		} else if (field === 'function_call_arguments_json') {
-			bucket.functionCallArgs = value;
-		} else if (field === 'contents') {
-			const partIndex = parseIndex(segments[3]);
-			if (partIndex == null) {
-				continue;
-			}
-			let part = bucket.contentParts.get(partIndex);
-			if (!part) {
-				part = {};
-				bucket.contentParts.set(partIndex, part);
-			}
-			if (segments[4] === 'message_content') {
-				const subField = segments[5];
-				if (!subField) {
-					continue;
-				}
-				if (subField === 'type') {
-					part.type = value;
-				} else if (subField === 'text') {
-					part.text = value;
-				} else if (subField === 'id') {
-					part.id = value;
-				} else if (subField === 'signature') {
-					part.signature = value;
-				} else if (subField === 'data') {
-					part.data = value;
-				} else if (subField === 'encrypted_content') {
-					part.encryptedContent = value;
-				} else if (
-					subField === 'image' &&
-					(segments[6] === 'url' ||
-						(segments[6] === 'image' && segments[7] === 'url'))
-				) {
-					part.imageUrl = value;
-				} else if (subField === 'audio') {
-					if (segments[6] === 'url') {
-						part.audioUrl = value;
-					} else if (segments[6] === 'mime_type') {
-						part.audioMimeType = value;
-					} else if (segments[6] === 'transcript') {
-						part.audioTranscript = value;
-					}
-				}
-			} else if (segments[4] === 'tool_call') {
-				const inner = segments.slice(5).join('.');
-				if (inner === 'id') {
-					part.toolCallId = value;
-				} else if (inner === 'function.name') {
-					part.toolCallName = value;
-				} else if (inner === 'function.arguments') {
-					part.toolCallArgs = value;
-				}
-			}
-		} else if (field === 'tool_calls') {
-			const tcIndex = parseIndex(segments[3]);
-			if (tcIndex == null) {
-				continue;
-			}
-			let tc = bucket.toolCalls.get(tcIndex);
-			if (!tc) {
-				tc = {};
-				bucket.toolCalls.set(tcIndex, tc);
-			}
-			const inner = segments.slice(4).join('.');
-			if (inner === 'tool_call.id' || inner === 'id') {
-				tc.id = value;
-			} else if (
-				inner === 'tool_call.function.name' ||
-				inner === 'function.name'
-			) {
-				tc.functionName = value;
-			} else if (
-				inner === 'tool_call.function.arguments' ||
-				inner === 'function.arguments'
-			) {
-				tc.argumentsRaw = value;
-			}
+		if (key.startsWith(prefix)) {
+			collectBucket(buckets, prefix, key, value);
 		}
 	}
-
 	return buckets;
 }
 
@@ -228,39 +243,39 @@ function snakeToCamel(input: string): string {
 	);
 }
 
+function imageContentPart(part: ContentPart): ConversationContentPart | null {
+	if (!part.imageUrl) {
+		return null;
+	}
+	return {
+		type: 'image',
+		url: part.imageUrl,
+		...(part.id !== undefined ? { id: part.id } : {}),
+		...(part.signature !== undefined ? { signature: part.signature } : {}),
+	};
+}
+
+function audioContentPart(part: ContentPart): ConversationContentPart {
+	return {
+		type: 'audio',
+		...(part.audioUrl !== undefined ? { url: part.audioUrl } : {}),
+		...(part.audioMimeType !== undefined ? { mimeType: part.audioMimeType } : {}),
+		...(part.audioTranscript !== undefined
+			? { transcript: part.audioTranscript }
+			: {}),
+	};
+}
+
 function partToContentPart(part: ContentPart): ConversationContentPart | null {
 	if (part.type === 'image' || part.imageUrl) {
-		if (!part.imageUrl) {
-			return null;
-		}
-		const imagePart: ConversationContentPart = {
-			type: 'image',
-			url: part.imageUrl,
-		};
-		if (part.id !== undefined) {
-			imagePart.id = part.id;
-		}
-		if (part.signature !== undefined) {
-			imagePart.signature = part.signature;
-		}
-		return imagePart;
+		return imageContentPart(part);
 	}
 	if (
 		part.type === 'audio' ||
 		part.audioUrl !== undefined ||
 		part.audioTranscript !== undefined
 	) {
-		const audioPart: ConversationContentPart = { type: 'audio' };
-		if (part.audioUrl !== undefined) {
-			audioPart.url = part.audioUrl;
-		}
-		if (part.audioMimeType !== undefined) {
-			audioPart.mimeType = part.audioMimeType;
-		}
-		if (part.audioTranscript !== undefined) {
-			audioPart.transcript = part.audioTranscript;
-		}
-		return audioPart;
+		return audioContentPart(part);
 	}
 	if (part.type === 'tool_use' || part.toolCallName !== undefined) {
 		return {
@@ -312,13 +327,14 @@ function contentPartToText(part: ConversationContentPart): string {
 function extractTokenDetailCounts(
 	tagMap: Record<string, string>,
 	prefix: string,
+	readCount = readTokenCount,
 ): Record<string, number> | undefined {
 	const details: Record<string, number> = {};
 	for (const [key, value] of Object.entries(tagMap)) {
 		if (!key.startsWith(prefix)) {
 			continue;
 		}
-		const parsed = readTokenCount(value);
+		const parsed = readCount(value);
 		if (parsed === undefined) {
 			continue;
 		}
@@ -412,102 +428,115 @@ function extractLegacyFunctionCall(
 	}
 }
 
+function bucketToolCalls(bucket: MessageBucket, idx: number): ToolCall[] {
+	const toolCalls: ToolCall[] = [...bucket.toolCalls.keys()]
+		.sort((a, b) => a - b)
+		.map((tcIdx) => {
+			const tc = bucket.toolCalls.get(tcIdx);
+			if (!tc) {
+				return null;
+			}
+			if (!tc.functionName) {
+				return null;
+			}
+			let args: Record<string, unknown> = {};
+			if (tc.argumentsRaw) {
+				try {
+					const parsed = JSON.parse(tc.argumentsRaw);
+					args =
+						typeof parsed === 'object' && parsed !== null
+							? parsed
+							: { value: parsed };
+				} catch {
+					args = { raw: tc.argumentsRaw };
+				}
+			}
+			return {
+				id: tc.id ?? `tc_${idx}_${tcIdx}`,
+				functionName: tc.functionName,
+				arguments: args,
+			};
+		})
+		.filter((tc): tc is ToolCall => tc !== null);
+
+	if (bucket.functionCallName && toolCalls.length === 0) {
+		let args: Record<string, unknown> = {};
+		if (bucket.functionCallArgs) {
+			try {
+				const parsed = JSON.parse(bucket.functionCallArgs);
+				args =
+					typeof parsed === 'object' && parsed !== null ? parsed : { value: parsed };
+			} catch {
+				args = { raw: bucket.functionCallArgs };
+			}
+		}
+		toolCalls.push({
+			id: `fc_${idx}_0`,
+			functionName: bucket.functionCallName,
+			arguments: args,
+		});
+	}
+
+	return toolCalls;
+}
+
+function bucketContentParts(bucket: MessageBucket): ConversationContentPart[] {
+	return [...bucket.contentParts.keys()]
+		.sort((a, b) => a - b)
+		.map((partIdx) => bucket.contentParts.get(partIdx))
+		.filter((part): part is ContentPart => part !== undefined)
+		.map(partToContentPart)
+		.filter((part): part is ConversationContentPart => part !== null)
+		.filter((part) => !(part.type === 'text' && !part.text.trim()));
+}
+
+function bucketToTurn(
+	bucket: MessageBucket,
+	idx: number,
+	spanId: string,
+): ConversationTurn | null {
+	const role = normalizeRole(bucket.role);
+	if (!role) {
+		return null;
+	}
+	const contentParts = bucketContentParts(bucket);
+	const turn: ConversationTurn = {
+		role,
+		content:
+			bucket.content ||
+			contentParts.map(contentPartToText).filter(Boolean).join('\n'),
+		spanId,
+	};
+	if (contentParts.length) {
+		turn.contentParts = contentParts;
+	}
+	const toolCalls = bucketToolCalls(bucket, idx);
+	if (toolCalls.length) {
+		turn.toolCalls = toolCalls;
+	}
+	if (bucket.functionCallName) {
+		turn.functionCall = {
+			name: bucket.functionCallName,
+			arguments: parseObjectJson(bucket.functionCallArgs),
+		};
+	}
+	if (bucket.toolCallId) {
+		turn.toolCallId = bucket.toolCallId;
+	}
+	if (bucket.name) {
+		turn.name = bucket.name;
+	}
+	return turn;
+}
+
 function bucketsToTurns(
 	buckets: Map<number, MessageBucket>,
 	spanId: string,
 ): ConversationTurn[] {
-	return [...buckets.keys()]
-		.sort((a, b) => a - b)
-		.flatMap((idx) => {
-			const bucket = buckets.get(idx)!;
-			const role = normalizeRole(bucket.role);
-			if (!role) {
-				return [];
-			}
-
-			const toolCalls: ToolCall[] = [...bucket.toolCalls.keys()]
-				.sort((a, b) => a - b)
-				.map((tcIdx) => {
-					const tc = bucket.toolCalls.get(tcIdx)!;
-					if (!tc.functionName) {
-						return null;
-					}
-					let args: Record<string, unknown> = {};
-					if (tc.argumentsRaw) {
-						try {
-							const parsed = JSON.parse(tc.argumentsRaw);
-							args =
-								typeof parsed === 'object' && parsed !== null
-									? parsed
-									: { value: parsed };
-						} catch {
-							args = { raw: tc.argumentsRaw };
-						}
-					}
-					return {
-						id: tc.id ?? `tc_${idx}_${tcIdx}`,
-						functionName: tc.functionName,
-						arguments: args,
-					};
-				})
-				.filter((tc): tc is ToolCall => tc !== null);
-
-			if (bucket.functionCallName && toolCalls.length === 0) {
-				let args: Record<string, unknown> = {};
-				if (bucket.functionCallArgs) {
-					try {
-						const parsed = JSON.parse(bucket.functionCallArgs);
-						args =
-							typeof parsed === 'object' && parsed !== null
-								? parsed
-								: { value: parsed };
-					} catch {
-						args = { raw: bucket.functionCallArgs };
-					}
-				}
-				toolCalls.push({
-					id: `fc_${idx}_0`,
-					functionName: bucket.functionCallName,
-					arguments: args,
-				});
-			}
-
-			const contentParts = [...bucket.contentParts.keys()]
-				.sort((a, b) => a - b)
-				.map((partIdx) => bucket.contentParts.get(partIdx))
-				.filter((part): part is ContentPart => part !== undefined)
-				.map(partToContentPart)
-				.filter((part): part is ConversationContentPart => part !== null)
-				.filter((part) => !(part.type === 'text' && !part.text.trim()));
-
-			let resolvedContent = bucket.content ?? '';
-			if (!bucket.content && contentParts.length > 0) {
-				resolvedContent = contentParts
-					.map(contentPartToText)
-					.filter(Boolean)
-					.join('\n');
-			}
-			const turn: ConversationTurn = { role, content: resolvedContent, spanId };
-			if (contentParts.length > 0) {
-				turn.contentParts = contentParts;
-			}
-			if (toolCalls.length > 0) {
-				turn.toolCalls = toolCalls;
-			}
-			if (bucket.functionCallName) {
-				turn.functionCall = {
-					name: bucket.functionCallName,
-					arguments: parseObjectJson(bucket.functionCallArgs),
-				};
-			}
-			if (bucket.toolCallId) {
-				turn.toolCallId = bucket.toolCallId;
-			}
-			if (bucket.name) {
-				turn.name = bucket.name;
-			}
-			return [turn];
-		});
+	return [...buckets.entries()]
+		.sort(([a], [b]) => a - b)
+		.map(([idx, bucket]) => bucketToTurn(bucket, idx, spanId))
+		.filter((turn): turn is ConversationTurn => turn !== null);
 }
 
 function readTokenCount(val: string | undefined): number | undefined {
@@ -515,7 +544,15 @@ function readTokenCount(val: string | undefined): number | undefined {
 		return undefined;
 	}
 	const n = Number(val);
-	return Number.isNaN(n) ? undefined : n;
+	return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function readNumber(val: string | undefined): number | undefined {
+	if (!val) {
+		return undefined;
+	}
+	const n = Number(val);
+	return Number.isFinite(n) ? n : undefined;
 }
 
 function extractToolDefinitions(
@@ -660,19 +697,8 @@ function extractIO(tagMap: Record<string, string>): IOPayload | undefined {
 	return io;
 }
 
-export function applyOpenInferenceAdapter(
-	tagMap: Record<string, string>,
-	spanId: string,
-): {
-	conversation: ConversationTurn[];
-	metrics: Partial<GenAIMetrics>;
-	invocationParameters?: InvocationParameters;
-	promptTemplate?: PromptTemplate;
-	availableTools?: ToolDefinition[];
-	io?: IOPayload;
-	score: number;
-} | null {
-	const hasOI = Object.keys(tagMap).some(
+function hasOpenInferenceTags(tagMap: Record<string, string>): boolean {
+	return Object.keys(tagMap).some(
 		(k) =>
 			k.startsWith(INPUT_PREFIX) ||
 			k.startsWith(OUTPUT_PREFIX) ||
@@ -682,57 +708,26 @@ export function applyOpenInferenceAdapter(
 			k === 'llm.model_name' ||
 			k === 'llm.invocation_parameters' ||
 			k.startsWith('llm.prompt_template.') ||
-			k === 'prompt.vendor' ||
-			k === 'prompt.id' ||
-			k === 'prompt.url' ||
-			k === 'llm.function_call' ||
-			k === 'llm.finish_reason' ||
+			[
+				'prompt.vendor',
+				'prompt.id',
+				'prompt.url',
+				'llm.function_call',
+				'llm.finish_reason',
+				'input.value',
+				'output.value',
+			].includes(k) ||
 			k.startsWith('llm.token_count.prompt_details.') ||
 			k.startsWith('llm.token_count.completion_details.') ||
-			k.startsWith('llm.cost.') ||
-			k === 'input.value' ||
-			k === 'output.value',
+			k.startsWith('llm.cost.'),
 	);
-	if (!hasOI) {
-		return null;
-	}
+}
 
-	const inputs = collectBuckets(tagMap, INPUT_PREFIX);
-	const outputs = collectBuckets(tagMap, OUTPUT_PREFIX);
-	const conversation = [
-		...bucketsToTurns(inputs, spanId),
-		...bucketsToTurns(outputs, spanId),
-	];
-	if (conversation.length === 0) {
-		conversation.push(...extractLLMCompletions(tagMap, spanId));
-	}
-	const topLevelFunctionCall = extractLegacyFunctionCall(
-		tagMap['llm.function_call'],
-	);
-	if (topLevelFunctionCall) {
-		const lastAssistantTurn = [...conversation]
-			.reverse()
-			.find((turn) => turn.role === 'assistant');
-		if (lastAssistantTurn) {
-			lastAssistantTurn.functionCall = topLevelFunctionCall;
-		}
-	}
-
-	const finishReason = tagMap['llm.finish_reason'];
-	if (finishReason) {
-		const lastOutputTurn = [...conversation]
-			.reverse()
-			.find((turn) => turn.role === 'assistant');
-		if (lastOutputTurn) {
-			lastOutputTurn.finishReason = finishReason;
-		}
-	}
-
+function extractMetrics(tagMap: Record<string, string>): Partial<GenAIMetrics> {
 	const metrics: Partial<GenAIMetrics> = {};
 	if (tagMap['llm.model_name']) {
 		metrics.model = tagMap['llm.model_name'];
 	}
-
 	const prompt = readTokenCount(tagMap['llm.token_count.prompt']);
 	const completion = readTokenCount(tagMap['llm.token_count.completion']);
 	const total = readTokenCount(tagMap['llm.token_count.total']);
@@ -748,39 +743,37 @@ export function applyOpenInferenceAdapter(
 		metrics.totalTokens =
 			(metrics.inputTokens ?? 0) + (metrics.outputTokens ?? 0);
 	}
-
 	const provider = tagMap['llm.provider'] ?? tagMap['llm.system'];
 	if (provider) {
 		metrics.provider = provider;
 	}
-
-	const promptTokenDetails = extractTokenDetailCounts(
+	const promptDetails = extractTokenDetailCounts(
 		tagMap,
 		'llm.token_count.prompt_details.',
 	);
-	if (promptTokenDetails) {
-		metrics.promptTokenDetails = promptTokenDetails;
+	if (promptDetails) {
+		metrics.promptTokenDetails = promptDetails;
 	}
-
-	const completionTokenDetails = extractTokenDetailCounts(
+	const completionDetails = extractTokenDetailCounts(
 		tagMap,
 		'llm.token_count.completion_details.',
 	);
-	if (completionTokenDetails) {
-		metrics.completionTokenDetails = completionTokenDetails;
+	if (completionDetails) {
+		metrics.completionTokenDetails = completionDetails;
 	}
-
-	const costPrompt = readTokenCount(tagMap['llm.cost.prompt']);
-	const costCompletion = readTokenCount(tagMap['llm.cost.completion']);
-	const costTotal = readTokenCount(tagMap['llm.cost.total']);
+	const costPrompt = readNumber(tagMap['llm.cost.prompt']);
+	const costCompletion = readNumber(tagMap['llm.cost.completion']);
+	const costTotal = readNumber(tagMap['llm.cost.total']);
 	const costUnit = tagMap['llm.cost.unit'];
 	const costPromptDetails = extractTokenDetailCounts(
 		tagMap,
 		'llm.cost.prompt_details.',
+		readNumber,
 	);
 	const costCompletionDetails = extractTokenDetailCounts(
 		tagMap,
 		'llm.cost.completion_details.',
+		readNumber,
 	);
 	if (
 		costPrompt !== undefined ||
@@ -803,6 +796,53 @@ export function applyOpenInferenceAdapter(
 			metrics.cost.completionDetails = costCompletionDetails;
 		}
 	}
+	return metrics;
+}
+
+function extractConversation(
+	tagMap: Record<string, string>,
+	spanId: string,
+): ConversationTurn[] {
+	const conversation = [
+		...bucketsToTurns(collectBuckets(tagMap, INPUT_PREFIX), spanId),
+		...bucketsToTurns(collectBuckets(tagMap, OUTPUT_PREFIX), spanId),
+	];
+	if (conversation.length === 0) {
+		conversation.push(...extractLLMCompletions(tagMap, spanId));
+	}
+	const functionCall = extractLegacyFunctionCall(tagMap['llm.function_call']);
+	const finishReason = tagMap['llm.finish_reason'];
+	const assistant = [...conversation]
+		.reverse()
+		.find((turn) => turn.role === 'assistant');
+	if (assistant && functionCall) {
+		assistant.functionCall = functionCall;
+	}
+	if (assistant && finishReason) {
+		assistant.finishReason = finishReason;
+	}
+	return conversation;
+}
+
+export function applyOpenInferenceAdapter(
+	tagMap: Record<string, string>,
+	spanId: string,
+): {
+	conversation: ConversationTurn[];
+	metrics: Partial<GenAIMetrics>;
+	invocationParameters?: InvocationParameters;
+	promptTemplate?: PromptTemplate;
+	availableTools?: ToolDefinition[];
+	io?: IOPayload;
+	score: number;
+} | null {
+	if (!hasOpenInferenceTags(tagMap)) {
+		return null;
+	}
+
+	const conversation = extractConversation(tagMap, spanId);
+
+	const metrics = extractMetrics(tagMap);
 
 	const availableTools = extractToolDefinitions(tagMap);
 	const io = extractIO(tagMap);

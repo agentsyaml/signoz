@@ -8,6 +8,13 @@ import costFixture from './__fixtures__/llm-cost.json';
 
 const SPAN_ID = 'span-abc';
 
+function required<T>(value: T | null | undefined): T {
+	if (value == null) {
+		throw new Error('Expected adapter output');
+	}
+	return value;
+}
+
 describe('applyGenAiAdapter', () => {
 	it('returns null when no gen_ai keys are present', () => {
 		expect(applyGenAiAdapter({}, SPAN_ID)).toBeNull();
@@ -17,9 +24,9 @@ describe('applyGenAiAdapter', () => {
 	it('returns score 0 (but non-null) when gen_ai keys present but no messages', () => {
 		const result = applyGenAiAdapter({ 'gen_ai.system': 'openai' }, SPAN_ID);
 		expect(result).not.toBeNull();
-		expect(result!.score).toBe(0);
-		expect(result!.conversation).toHaveLength(0);
-		expect(result!.metrics.provider).toBe('openai');
+		expect(required(result).score).toBe(0);
+		expect(required(result).conversation).toHaveLength(0);
+		expect(required(result).metrics.provider).toBe('openai');
 	});
 
 	describe('text content from parts array', () => {
@@ -31,7 +38,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('Hello!');
+			expect(required(result).conversation[0].content).toBe('Hello!');
 		});
 
 		it('falls back to parts[].text', () => {
@@ -42,7 +49,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('Hi there');
+			expect(required(result).conversation[0].content).toBe('Hi there');
 		});
 
 		it('falls back to top-level content string', () => {
@@ -51,7 +58,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('Plain string');
+			expect(required(result).conversation[0].content).toBe('Plain string');
 		});
 
 		it('joins multiple text parts with newline', () => {
@@ -68,7 +75,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('First\nSecond');
+			expect(required(result).conversation[0].content).toBe('First\nSecond');
 		});
 	});
 
@@ -92,11 +99,13 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.toolCalls).toHaveLength(1);
-			expect(turn.toolCalls![0].functionName).toBe('get_weather');
-			expect(turn.toolCalls![0].id).toBe('call_1');
-			expect(turn.toolCalls![0].arguments).toStrictEqual({ location: 'NYC' });
+			expect(required(turn.toolCalls)[0].functionName).toBe('get_weather');
+			expect(required(turn.toolCalls)[0].id).toBe('call_1');
+			expect(required(turn.toolCalls)[0].arguments).toStrictEqual({
+				location: 'NYC',
+			});
 		});
 
 		it('tool_call parts do not appear in text content', () => {
@@ -110,7 +119,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('');
+			expect(required(result).conversation[0].content).toBe('');
 		});
 
 		it('merges explicit tool_calls array with parts tool calls', () => {
@@ -137,11 +146,35 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			const names = result!.conversation[0].toolCalls!.map(
+			const names = required(required(result).conversation[0].toolCalls).map(
 				(tc) => tc.functionName,
 			);
 			expect(names).toContain('from_tool_calls');
 			expect(names).toContain('from_parts');
+		});
+
+		it('accepts scalar tool identifiers and falls back for objects', () => {
+			const result = applyGenAiAdapter(
+				{
+					'gen_ai.output.messages': JSON.stringify([
+						{
+							role: 'assistant',
+							tool_calls: [
+								{ id: 17, function: { name: 'run', arguments: '{}' } },
+								{ id: {}, function: { name: 'fallback', arguments: '{}' } },
+								{ id: 'invalid', function: { name: {}, arguments: '{}' } },
+							],
+						},
+						{ role: 'tool', tool_call_id: { id: 'bad' }, parts: [] },
+					]),
+				},
+				SPAN_ID,
+			);
+			expect(required(result).conversation[0].toolCalls).toMatchObject([
+				{ id: '17', functionName: 'run' },
+				{ id: `${SPAN_ID}-out0-tc1`, functionName: 'fallback' },
+			]);
+			expect(required(result).conversation[1].toolCallId).toBeUndefined();
 		});
 
 		it('assigns fallback id when tool_call part has no id', () => {
@@ -155,7 +188,9 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].toolCalls![0].id).toContain(SPAN_ID);
+			expect(required(required(result).conversation[0].toolCalls)[0].id).toContain(
+				SPAN_ID,
+			);
 		});
 	});
 
@@ -174,7 +209,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			const content = result!.conversation[0].content;
+			const content = required(result).conversation[0].content;
 			expect(content).toContain('<think>Step-by-step...</think>');
 			expect(content).toContain('Final answer');
 		});
@@ -190,14 +225,16 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('<think>Thinking...</think>');
+			expect(required(result).conversation[0].content).toBe(
+				'<think>Thinking...</think>',
+			);
 		});
 	});
 
 	describe('multimodal parts (P1)', () => {
 		it('emits typed contentParts preserving image and tool_use', () => {
 			const result = applyGenAiAdapter(multimodalFixture, SPAN_ID);
-			expect(result!.conversation[0].contentParts).toStrictEqual([
+			expect(required(result).conversation[0].contentParts).toStrictEqual([
 				{ type: 'text', text: 'Describe this image' },
 				{ type: 'image', url: 'https://example.com/cat.png' },
 				{
@@ -220,7 +257,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[blob]');
+			expect(required(result).conversation[0].content).toBe('[blob]');
 		});
 
 		it('renders file part with name', () => {
@@ -234,7 +271,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[file: report.pdf]');
+			expect(required(result).conversation[0].content).toBe('[file: report.pdf]');
 		});
 
 		it('renders file part without name as [file]', () => {
@@ -243,7 +280,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[file]');
+			expect(required(result).conversation[0].content).toBe('[file]');
 		});
 
 		it('renders uri part with uri', () => {
@@ -257,14 +294,16 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[uri: gs://bucket/file]');
+			expect(required(result).conversation[0].content).toBe(
+				'[uri: gs://bucket/file]',
+			);
 		});
 	});
 
 	describe('finish_reason (P2)', () => {
 		it('captures finish_reasons array on last assistant turn', () => {
 			const result = applyGenAiAdapter(functionCallFixture, SPAN_ID);
-			expect(result!.conversation[0].finishReasons).toStrictEqual([
+			expect(required(result).conversation[0].finishReasons).toStrictEqual([
 				'stop',
 				'tool_calls',
 			]);
@@ -278,7 +317,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].finishReason).toBe('stop');
+			expect(required(result).conversation[0].finishReason).toBe('stop');
 		});
 
 		it('captures tool_call finish_reason', () => {
@@ -293,7 +332,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].finishReason).toBe('tool_call');
+			expect(required(result).conversation[0].finishReason).toBe('tool_call');
 		});
 
 		it('leaves finishReason undefined when not present', () => {
@@ -302,7 +341,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].finishReason).toBeUndefined();
+			expect(required(result).conversation[0].finishReason).toBeUndefined();
 		});
 	});
 
@@ -324,8 +363,8 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].toolCallId).toBe('call_xyz');
-			expect(result!.conversation[0].content).toBe('sunny');
+			expect(required(result).conversation[0].toolCallId).toBe('call_xyz');
+			expect(required(result).conversation[0].content).toBe('sunny');
 		});
 
 		it('extracts toolCallId from server_tool_call_response part', () => {
@@ -345,8 +384,8 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].toolCallId).toBe('srv_call_1');
-			expect(result!.conversation[0].content).toBe('result');
+			expect(required(result).conversation[0].toolCallId).toBe('srv_call_1');
+			expect(required(result).conversation[0].content).toBe('result');
 		});
 	});
 
@@ -408,25 +447,25 @@ describe('applyGenAiAdapter', () => {
 	describe('metrics', () => {
 		it('extracts typed invocation parameters', () => {
 			const result = applyGenAiAdapter(invocationParamsFixture, SPAN_ID);
-			expect(result!.invocationParameters).toStrictEqual({
+			expect(required(result).invocationParameters).toStrictEqual({
 				merged: { temperature: 0.5, top_p: 0.9 },
 			});
 		});
 
 		it('extracts token detail metrics', () => {
 			const result = applyGenAiAdapter(tokenDetailsFixture, SPAN_ID);
-			expect(result!.metrics.promptTokenDetails).toStrictEqual({
+			expect(required(result).metrics.promptTokenDetails).toStrictEqual({
 				cacheRead: 1024,
 				cacheWrite: 64,
 			});
-			expect(result!.metrics.completionTokenDetails).toStrictEqual({
+			expect(required(result).metrics.completionTokenDetails).toStrictEqual({
 				reasoning: 256,
 			});
 		});
 
 		it('extracts secondary metadata', () => {
 			const result = applyGenAiAdapter(secondaryMetadataFixture, SPAN_ID);
-			expect(result!.secondaryMetadata).toStrictEqual({
+			expect(required(result).secondaryMetadata).toStrictEqual({
 				responseId: 'resp_abc',
 				timeToFirstChunk: 0.234,
 				conversationId: 'conv_xyz',
@@ -446,7 +485,7 @@ describe('applyGenAiAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.cost).toStrictEqual({
+			expect(required(result).metrics.cost).toStrictEqual({
 				prompt: 0.0012,
 				completion: 0.0034,
 				total: 0.0046,
@@ -464,11 +503,11 @@ describe('applyGenAiAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.model).toBe('gpt-4o');
-			expect(result!.metrics.provider).toBe('openai');
-			expect(result!.metrics.inputTokens).toBe(100);
-			expect(result!.metrics.outputTokens).toBe(50);
-			expect(result!.metrics.totalTokens).toBe(150);
+			expect(required(result).metrics.model).toBe('gpt-4o');
+			expect(required(result).metrics.provider).toBe('openai');
+			expect(required(result).metrics.inputTokens).toBe(100);
+			expect(required(result).metrics.outputTokens).toBe(50);
+			expect(required(result).metrics.totalTokens).toBe(150);
 		});
 
 		it('falls back to legacy token field names', () => {
@@ -480,9 +519,9 @@ describe('applyGenAiAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.inputTokens).toBe(80);
-			expect(result!.metrics.outputTokens).toBe(40);
-			expect(result!.metrics.totalTokens).toBe(120);
+			expect(required(result).metrics.inputTokens).toBe(80);
+			expect(required(result).metrics.outputTokens).toBe(40);
+			expect(required(result).metrics.totalTokens).toBe(120);
 		});
 
 		it('prefers explicit total_tokens over computed', () => {
@@ -495,7 +534,7 @@ describe('applyGenAiAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.totalTokens).toBe(999);
+			expect(required(result).metrics.totalTokens).toBe(999);
 		});
 
 		it('prefers request.model over response.model', () => {
@@ -507,7 +546,7 @@ describe('applyGenAiAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.model).toBe('gpt-4');
+			expect(required(result).metrics.model).toBe('gpt-4');
 		});
 	});
 
@@ -525,7 +564,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].role).toBe(expected);
+			expect(required(result).conversation[0].role).toBe(expected);
 		});
 
 		it('skips messages with unknown role', () => {
@@ -537,8 +576,8 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.input.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(1);
-			expect(result!.conversation[0].role).toBe('user');
+			expect(required(result).conversation).toHaveLength(1);
+			expect(required(result).conversation[0].role).toBe('user');
 		});
 	});
 
@@ -547,7 +586,7 @@ describe('applyGenAiAdapter', () => {
 			{ 'gen_ai.input.messages': 'not json' },
 			SPAN_ID,
 		);
-		expect(result!.conversation).toHaveLength(0);
+		expect(required(result).conversation).toHaveLength(0);
 	});
 
 	it('skips non-array JSON gracefully', () => {
@@ -555,7 +594,7 @@ describe('applyGenAiAdapter', () => {
 			{ 'gen_ai.input.messages': '{"role":"user"}' },
 			SPAN_ID,
 		);
-		expect(result!.conversation).toHaveLength(0);
+		expect(required(result).conversation).toHaveLength(0);
 	});
 
 	describe('vendor-flat OpenAI/OpenRouter shape', () => {
@@ -589,17 +628,19 @@ describe('applyGenAiAdapter', () => {
 				SPAN_ID,
 			);
 			expect(result).not.toBeNull();
-			expect(result!.conversation).toHaveLength(1);
-			const turn = result!.conversation[0];
+			expect(required(result).conversation).toHaveLength(1);
+			const turn = required(result).conversation[0];
 			expect(turn.role).toBe('assistant');
 			expect(turn.reasoning).toContain('SigNoz');
 			expect(turn.toolCalls).toHaveLength(1);
-			expect(turn.toolCalls![0].functionName).toBe('mcp__tavilyMcp__tavilySearch');
-			expect(turn.toolCalls![0].arguments).toStrictEqual({
+			expect(required(turn.toolCalls)[0].functionName).toBe(
+				'mcp__tavilyMcp__tavilySearch',
+			);
+			expect(required(turn.toolCalls)[0].arguments).toStrictEqual({
 				query: 'SigNoz community edition clickhouse-keeper zookeeper alternative',
 				max_results: 10,
 			});
-			expect(result!.score).toBeGreaterThan(0);
+			expect(required(result).score).toBeGreaterThan(0);
 		});
 
 		it('falls back to flat reasoning string when reasoning_details missing', () => {
@@ -614,7 +655,7 @@ describe('applyGenAiAdapter', () => {
 				{ 'gen_ai.output.messages': JSON.stringify(messages) },
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].reasoning).toBe(
+			expect(required(result).conversation[0].reasoning).toBe(
 				'Step 1: think. Step 2: act.',
 			);
 		});

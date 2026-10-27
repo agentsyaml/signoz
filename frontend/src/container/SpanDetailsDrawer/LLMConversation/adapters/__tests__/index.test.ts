@@ -54,6 +54,31 @@ describe('parseLLMSpan (adapter selection)', () => {
 		expect(result.conversation).toHaveLength(1);
 	});
 
+	it('keeps gen_ai numeric metrics finite and token counts non-negative', () => {
+		const result = parseLLMSpan(
+			{
+				'gen_ai.input.messages': JSON.stringify([{ role: 'user', content: 'hi' }]),
+				'gen_ai.usage.input_tokens': '-1',
+				'gen_ai.usage.output_tokens': '0.5',
+				'gen_ai.usage.total_tokens': 'Infinity',
+				'gen_ai.usage.cache_read.input_tokens': '-2',
+				'gen_ai.usage.cost.prompt': '-0.25',
+				'gen_ai.usage.cost.total': 'Infinity',
+				'gen_ai.response.time_to_first_chunk': '-1',
+			},
+			undefined,
+			SPAN_ID,
+		);
+		expect(result.metrics).toMatchObject({
+			outputTokens: 0.5,
+			totalTokens: 0.5,
+			cost: { prompt: -0.25, total: undefined },
+		});
+		expect(result.metrics.inputTokens).toBeUndefined();
+		expect(result.metrics.promptTokenDetails).toBeUndefined();
+		expect(result.secondaryMetadata?.timeToFirstChunk).toBeUndefined();
+	});
+
 	it('selects gen_ai and returns IO for a result-only tool span', () => {
 		const result = parseLLMSpan(
 			{ 'gen_ai.tool.call.result': '{"status":"complete"}' },
@@ -80,6 +105,31 @@ describe('parseLLMSpan (adapter selection)', () => {
 		);
 		expect(result.adapterUsed).toBe('openinference');
 		expect(result.conversation).toHaveLength(1);
+	});
+
+	it('keeps openinference numeric metrics finite and token counts non-negative', () => {
+		const result = parseLLMSpan(
+			{
+				'llm.model_name': 'gpt-4',
+				'llm.input_messages.0.message.role': 'user',
+				'llm.input_messages.0.message.content': 'hi',
+				'llm.token_count.prompt': '0',
+				'llm.token_count.completion': '-1',
+				'llm.token_count.total': 'Infinity',
+				'llm.token_count.prompt_details.cache_read': '-2',
+				'llm.cost.prompt': '-0.25',
+				'llm.cost.total': 'Infinity',
+			},
+			undefined,
+			SPAN_ID,
+		);
+		expect(result.metrics).toMatchObject({
+			inputTokens: 0,
+			totalTokens: 0,
+			cost: { prompt: -0.25, total: undefined },
+		});
+		expect(result.metrics.outputTokens).toBeUndefined();
+		expect(result.metrics.promptTokenDetails).toBeUndefined();
 	});
 
 	it('prefers gen_ai over openinference when both present with equal turns', () => {

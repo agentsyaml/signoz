@@ -9,6 +9,13 @@ import anthropicToolUseFixture from './__fixtures__/llm-anthropic-tool-use.json'
 
 const SPAN_ID = 'span-oi';
 
+function required<T>(value: T | null | undefined): T {
+	if (value == null) {
+		throw new Error('Expected adapter output');
+	}
+	return value;
+}
+
 describe('applyOpenInferenceAdapter', () => {
 	it('returns null when no openinference keys are present', () => {
 		expect(applyOpenInferenceAdapter({}, SPAN_ID)).toBeNull();
@@ -23,8 +30,8 @@ describe('applyOpenInferenceAdapter', () => {
 			SPAN_ID,
 		);
 		expect(result).not.toBeNull();
-		expect(result!.score).toBe(0);
-		expect(result!.metrics.model).toBe('gpt-4');
+		expect(required(result).score).toBe(0);
+		expect(required(result).metrics.model).toBe('gpt-4');
 	});
 
 	describe('basic message parsing', () => {
@@ -38,15 +45,44 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(2);
-			expect(result!.conversation[0]).toMatchObject({
+			expect(required(result).conversation).toHaveLength(2);
+			expect(required(result).conversation[0]).toMatchObject({
 				role: 'user',
 				content: 'What is 2+2?',
 			});
-			expect(result!.conversation[1]).toMatchObject({
+			expect(required(result).conversation[1]).toMatchObject({
 				role: 'assistant',
 				content: '4',
 			});
+		});
+
+		it('derives turn content from parts when explicit content is empty', () => {
+			const result = applyOpenInferenceAdapter(
+				{
+					'llm.input_messages.0.message.role': 'user',
+					'llm.input_messages.0.message.content': '',
+					'llm.input_messages.0.message.contents.0.message_content.type': 'text',
+					'llm.input_messages.0.message.contents.0.message_content.text':
+						'part text',
+				},
+				SPAN_ID,
+			);
+			expect(required(result).conversation[0].content).toBe('part text');
+		});
+
+		it('ignores prototype-named content fields', () => {
+			const result = applyOpenInferenceAdapter(
+				{
+					'llm.input_messages.0.message.role': 'user',
+					'llm.input_messages.0.message.content': 'safe',
+					'llm.input_messages.0.message.contents.0.message_content.__proto__': 'x',
+					'llm.input_messages.0.message.contents.1.message_content.constructor': 'x',
+					'llm.input_messages.0.message.contents.2.message_content.toString': 'x',
+				},
+				SPAN_ID,
+			);
+			expect(required(result).conversation[0].content).toBe('safe');
+			expect(required(result).conversation[0].contentParts).toBeUndefined();
 		});
 
 		it('preserves message ordering within input and output buckets', () => {
@@ -59,10 +95,10 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].role).toBe('system');
-			expect(result!.conversation[0].content).toBe('First');
-			expect(result!.conversation[1].role).toBe('user');
-			expect(result!.conversation[1].content).toBe('Second');
+			expect(required(result).conversation[0].role).toBe('system');
+			expect(required(result).conversation[0].content).toBe('First');
+			expect(required(result).conversation[1].role).toBe('user');
+			expect(required(result).conversation[1].content).toBe('Second');
 		});
 
 		it('skips messages with unknown role', () => {
@@ -75,8 +111,8 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(1);
-			expect(result!.conversation[0].role).toBe('user');
+			expect(required(result).conversation).toHaveLength(1);
+			expect(required(result).conversation[0].role).toBe('user');
 		});
 
 		it('preserves message.name and tool_call_id on turns', () => {
@@ -89,7 +125,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.role).toBe('tool');
 			expect(turn.toolCallId).toBe('call_abc');
 			expect(turn.name).toBe('get_weather');
@@ -110,11 +146,13 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.toolCalls).toHaveLength(1);
-			expect(turn.toolCalls![0].id).toBe('call_1');
-			expect(turn.toolCalls![0].functionName).toBe('search');
-			expect(turn.toolCalls![0].arguments).toStrictEqual({ query: 'hello' });
+			expect(required(turn.toolCalls)[0].id).toBe('call_1');
+			expect(required(turn.toolCalls)[0].functionName).toBe('search');
+			expect(required(turn.toolCalls)[0].arguments).toStrictEqual({
+				query: 'hello',
+			});
 		});
 
 		it('falls back to function.name/function.arguments key variant', () => {
@@ -126,7 +164,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].toolCalls![0].functionName).toBe('fn');
+			expect(
+				required(required(result).conversation[0].toolCalls)[0].functionName,
+			).toBe('fn');
 		});
 	});
 
@@ -142,11 +182,13 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.toolCalls).toHaveLength(1);
-			expect(turn.toolCalls![0].functionName).toBe('get_weather');
-			expect(turn.toolCalls![0].arguments).toStrictEqual({ city: 'Paris' });
-			expect(turn.toolCalls![0].id).toMatch(/^fc_/);
+			expect(required(turn.toolCalls)[0].functionName).toBe('get_weather');
+			expect(required(turn.toolCalls)[0].arguments).toStrictEqual({
+				city: 'Paris',
+			});
+			expect(required(turn.toolCalls)[0].id).toMatch(/^fc_/);
 		});
 
 		it('does not add function_call toolCall when tool_calls already present', () => {
@@ -162,7 +204,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const names = result!.conversation[0].toolCalls!.map(
+			const names = required(required(result).conversation[0].toolCalls).map(
 				(tc) => tc.functionName,
 			);
 			expect(names).not.toContain('fn_legacy');
@@ -178,7 +220,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].toolCalls![0].arguments).toStrictEqual({
+			expect(
+				required(required(result).conversation[0].toolCalls)[0].arguments,
+			).toStrictEqual({
 				raw: 'not json',
 			});
 		});
@@ -192,9 +236,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(1);
-			expect(result!.conversation[0].role).toBe('user');
-			expect(result!.conversation[0].functionCall).toBeUndefined();
+			expect(required(result).conversation).toHaveLength(1);
+			expect(required(result).conversation[0].role).toBe('user');
+			expect(required(result).conversation[0].functionCall).toBeUndefined();
 		});
 	});
 
@@ -210,7 +254,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('Hello\nWorld');
+			expect(required(result).conversation[0].content).toBe('Hello\nWorld');
 		});
 
 		it('renders image parts as [image: url]', () => {
@@ -223,14 +267,14 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe(
+			expect(required(result).conversation[0].content).toBe(
 				'[image: https://example.com/img.png]',
 			);
 		});
 
 		it('emits typed multimodal contentParts', () => {
 			const result = applyOpenInferenceAdapter(multimodalFixture, SPAN_ID);
-			expect(result!.conversation[0].contentParts).toStrictEqual([
+			expect(required(result).conversation[0].contentParts).toStrictEqual([
 				{ type: 'text', text: 'Describe this image' },
 				{ type: 'image', url: 'https://example.com/cat.png' },
 				{
@@ -260,15 +304,15 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.contentParts).toHaveLength(2);
-			expect(turn.contentParts![0]).toMatchObject({
+			expect(required(turn.contentParts)[0]).toMatchObject({
 				type: 'reasoning',
 				text: 'Let me think...',
 				id: 'thinking_1',
 				signature: 'sig_abc',
 			});
-			expect(turn.contentParts![1]).toStrictEqual({
+			expect(required(turn.contentParts)[1]).toStrictEqual({
 				type: 'text',
 				text: 'The answer is 42.',
 			});
@@ -278,13 +322,13 @@ describe('applyOpenInferenceAdapter', () => {
 
 		it('parses Anthropic-style tool_use via contents.{j}.tool_call.* keys', () => {
 			const result = applyOpenInferenceAdapter(anthropicToolUseFixture, SPAN_ID);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.contentParts).toHaveLength(2);
-			expect(turn.contentParts![0]).toStrictEqual({
+			expect(required(turn.contentParts)[0]).toStrictEqual({
 				type: 'text',
 				text: "I'll look up the weather for you.",
 			});
-			expect(turn.contentParts![1]).toMatchObject({
+			expect(required(turn.contentParts)[1]).toMatchObject({
 				type: 'tool_use',
 				id: 'toolu_abc123',
 				name: 'get_weather',
@@ -304,9 +348,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const turn = result!.conversation[0];
+			const turn = required(result).conversation[0];
 			expect(turn.contentParts).toHaveLength(1);
-			expect(turn.contentParts![0]).toMatchObject({
+			expect(required(turn.contentParts)[0]).toMatchObject({
 				type: 'tool_use',
 				id: 'call_xyz',
 				name: 'search',
@@ -327,8 +371,8 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[1].finishReason).toBe('stop');
-			expect(result!.conversation[0].finishReason).toBeUndefined();
+			expect(required(result).conversation[1].finishReason).toBe('stop');
+			expect(required(result).conversation[0].finishReason).toBeUndefined();
 		});
 
 		it('is a no-op when there is no assistant output turn', () => {
@@ -340,7 +384,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].finishReason).toBeUndefined();
+			expect(required(result).conversation[0].finishReason).toBeUndefined();
 		});
 
 		it('treats llm.finish_reason as a hasOI trigger', () => {
@@ -376,17 +420,23 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.availableTools).toHaveLength(2);
-			expect(result!.availableTools![0].name).toBe('get_weather');
-			expect(result!.availableTools![0].description).toBe(
+			expect(required(result).availableTools).toHaveLength(2);
+			expect(required(required(result).availableTools)[0].name).toBe(
+				'get_weather',
+			);
+			expect(required(required(result).availableTools)[0].description).toBe(
 				'Get weather for a city',
 			);
-			expect(result!.availableTools![0].parameters).toStrictEqual({
+			expect(
+				required(required(result).availableTools)[0].parameters,
+			).toStrictEqual({
 				type: 'object',
 				properties: { city: { type: 'string' } },
 			});
-			expect(result!.availableTools![1].name).toBe('search');
-			expect(result!.availableTools![1].description).toBe('Search the web');
+			expect(required(required(result).availableTools)[1].name).toBe('search');
+			expect(required(required(result).availableTools)[1].description).toBe(
+				'Search the web',
+			);
 		});
 
 		it('returns score > 0 for tools-only span (no conversation)', () => {
@@ -399,8 +449,8 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.score).toBeGreaterThan(0);
-			expect(result!.availableTools).toHaveLength(1);
+			expect(required(result).score).toBeGreaterThan(0);
+			expect(required(result).availableTools).toHaveLength(1);
 		});
 	});
 
@@ -417,7 +467,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.io).toStrictEqual({
+			expect(required(result).io).toStrictEqual({
 				input: '{"messages":[{"role":"user","content":"hi"}]}',
 				inputMimeType: 'application/json',
 				output: '{"message":{"role":"assistant","content":"hello"}}',
@@ -434,8 +484,8 @@ describe('applyOpenInferenceAdapter', () => {
 				SPAN_ID,
 			);
 			expect(result).not.toBeNull();
-			expect(result!.score).toBeGreaterThan(0);
-			expect(result!.io).toStrictEqual({
+			expect(required(result).score).toBeGreaterThan(0);
+			expect(required(result).io).toStrictEqual({
 				input: 'raw prompt text',
 				output: 'raw completion text',
 			});
@@ -445,7 +495,7 @@ describe('applyOpenInferenceAdapter', () => {
 	describe('coverage gap extraction', () => {
 		it('extracts invocation parameters rawJson and parsed merge floor', () => {
 			const result = applyOpenInferenceAdapter(invocationParamsFixture, SPAN_ID);
-			expect(result!.invocationParameters).toStrictEqual({
+			expect(required(result).invocationParameters).toStrictEqual({
 				merged: { temperature: 0.7, top_p: 0.9 },
 				rawJson: '{"temperature":0.7,"top_p":0.9}',
 			});
@@ -453,7 +503,7 @@ describe('applyOpenInferenceAdapter', () => {
 
 		it('extracts prompt template fields', () => {
 			const result = applyOpenInferenceAdapter(promptTemplateFixture, SPAN_ID);
-			expect(result!.promptTemplate).toStrictEqual({
+			expect(required(result).promptTemplate).toStrictEqual({
 				template: 'Hello {name}',
 				variables: { name: 'World' },
 				version: 'v2',
@@ -462,7 +512,7 @@ describe('applyOpenInferenceAdapter', () => {
 
 		it('extracts legacy function_call on assistant turn', () => {
 			const result = applyOpenInferenceAdapter(functionCallFixture, SPAN_ID);
-			expect(result!.conversation[0].functionCall).toStrictEqual({
+			expect(required(result).conversation[0].functionCall).toStrictEqual({
 				name: 'f',
 				arguments: {},
 			});
@@ -470,17 +520,17 @@ describe('applyOpenInferenceAdapter', () => {
 
 		it('extracts token detail counts', () => {
 			const result = applyOpenInferenceAdapter(tokenDetailsFixture, SPAN_ID);
-			expect(result!.metrics.promptTokenDetails).toStrictEqual({
+			expect(required(result).metrics.promptTokenDetails).toStrictEqual({
 				cacheRead: 512,
 			});
-			expect(result!.metrics.completionTokenDetails).toStrictEqual({
+			expect(required(result).metrics.completionTokenDetails).toStrictEqual({
 				reasoning: 128,
 			});
 		});
 
 		it('extracts raw numeric cost breakdown', () => {
 			const result = applyOpenInferenceAdapter(costFixture, SPAN_ID);
-			expect(result!.metrics.cost).toStrictEqual({
+			expect(required(result).metrics.cost).toStrictEqual({
 				prompt: 0.0012,
 				completion: 0.0034,
 				total: 0.0046,
@@ -502,7 +552,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.cost).toMatchObject({
+			expect(required(result).metrics.cost).toMatchObject({
 				prompt: 0.001,
 				completion: 0.002,
 				total: 0.003,
@@ -527,9 +577,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const parts = result!.conversation[0].contentParts;
+			const parts = required(result).conversation[0].contentParts;
 			expect(parts).toHaveLength(1);
-			expect(parts![0]).toStrictEqual({
+			expect(required(parts)[0]).toStrictEqual({
 				type: 'audio',
 				url: 'https://example.com/speech.mp3',
 				mimeType: 'audio/mpeg',
@@ -549,7 +599,9 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[audio: spoken text here]');
+			expect(required(result).conversation[0].content).toBe(
+				'[audio: spoken text here]',
+			);
 		});
 
 		it('reflects url in content string when transcript is absent', () => {
@@ -562,7 +614,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe(
+			expect(required(result).conversation[0].content).toBe(
 				'[audio: https://example.com/clip.mp3]',
 			);
 		});
@@ -577,8 +629,10 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation[0].content).toBe('[audio]');
-			expect(result!.conversation[0].contentParts![0]).toMatchObject({
+			expect(required(result).conversation[0].content).toBe('[audio]');
+			expect(
+				required(required(result).conversation[0].contentParts)[0],
+			).toMatchObject({
 				type: 'audio',
 				mimeType: 'audio/ogg',
 			});
@@ -594,12 +648,12 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(2);
-			expect(result!.conversation[0]).toMatchObject({
+			expect(required(result).conversation).toHaveLength(2);
+			expect(required(result).conversation[0]).toMatchObject({
 				role: 'user',
 				content: 'First prompt',
 			});
-			expect(result!.conversation[1]).toMatchObject({
+			expect(required(result).conversation[1]).toMatchObject({
 				role: 'user',
 				content: 'Second prompt',
 			});
@@ -613,8 +667,8 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(2);
-			expect(result!.conversation[0]).toMatchObject({
+			expect(required(result).conversation).toHaveLength(2);
+			expect(required(result).conversation[0]).toMatchObject({
 				role: 'assistant',
 				content: 'Completion A',
 			});
@@ -628,7 +682,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			const roles = result!.conversation.map((t) => t.role);
+			const roles = required(result).conversation.map((t) => t.role);
 			expect(roles).toContain('user');
 			expect(roles).toContain('assistant');
 		});
@@ -643,8 +697,10 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(4);
-			expect(result!.conversation.map((t) => [t.role, t.content])).toStrictEqual([
+			expect(required(result).conversation).toHaveLength(4);
+			expect(
+				required(result).conversation.map((t) => [t.role, t.content]),
+			).toStrictEqual([
 				['user', 'Prompt 0'],
 				['assistant', 'Completion 0'],
 				['user', 'Prompt 1'],
@@ -661,8 +717,8 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.conversation).toHaveLength(1);
-			expect(result!.conversation[0].content).toBe('real message');
+			expect(required(result).conversation).toHaveLength(1);
+			expect(required(result).conversation[0].content).toBe('real message');
 		});
 
 		it('is a hasOI trigger (returns non-null) for prompts-only tag map', () => {
@@ -688,11 +744,11 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.model).toBe('claude-3');
-			expect(result!.metrics.provider).toBe('anthropic');
-			expect(result!.metrics.inputTokens).toBe(200);
-			expect(result!.metrics.outputTokens).toBe(80);
-			expect(result!.metrics.totalTokens).toBe(280);
+			expect(required(result).metrics.model).toBe('claude-3');
+			expect(required(result).metrics.provider).toBe('anthropic');
+			expect(required(result).metrics.inputTokens).toBe(200);
+			expect(required(result).metrics.outputTokens).toBe(80);
+			expect(required(result).metrics.totalTokens).toBe(280);
 		});
 
 		it('computes totalTokens when total not provided', () => {
@@ -706,7 +762,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.totalTokens).toBe(75);
+			expect(required(result).metrics.totalTokens).toBe(75);
 		});
 
 		it('falls back to llm.system for provider', () => {
@@ -719,7 +775,7 @@ describe('applyOpenInferenceAdapter', () => {
 				},
 				SPAN_ID,
 			);
-			expect(result!.metrics.provider).toBe('cohere');
+			expect(required(result).metrics.provider).toBe('cohere');
 		});
 	});
 });
