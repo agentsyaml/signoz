@@ -116,6 +116,23 @@ func TestUnwrapVariant(t *testing.T) {
 	}
 }
 
+func TestLabelValuePreservesJSONPathIdentity(t *testing.T) {
+	first := jsonColumn(map[string]any{
+		"db.function":     "refresh",
+		"db.function.arg": int64(2),
+		"shared":          "value",
+		"null.path":       chcol.Variant{},
+	})
+	second := jsonColumn(map[string]any{
+		"db.function":     "refresh",
+		"db.function.arg": int64(2),
+		"shared":          "value",
+	})
+	assert.Equal(t, labelValue(second), labelValue(first))
+	assert.Contains(t, labelValue(first), `"db.function":"refresh"`)
+	assert.Contains(t, labelValue(first), `"db.function.arg":2`)
+}
+
 func TestMergeSpanAttributeColumns_EmptyEventsAndLinks(t *testing.T) {
 	data := map[string]any{
 		"events": []string{},

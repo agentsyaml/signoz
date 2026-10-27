@@ -1,0 +1,195 @@
+// data-class mirrors for @signozhq/ui 0.2.0
+//
+// Badge dropped its `className` prop in 0.2.0; it forwards `data-*` attributes
+// to the root element instead. These selectors re-apply the same styling the
+// nested `&__role-tag` / `__name-tag` etc. rules used to provide when the
+// component accepted `className`. Where a recolor must survive the lib's own
+// `[data-variant]` / `[data-color]` rules (which out-rank attribute-selector
+// shorthands), it goes through the documented `--badge-outlined-*` custom
+// properties that those rules read.
+//
+// Badge 0.2.0 also uppercases by default. Chips here carry case-sensitive
+// content (model names, session/response IDs, tool types), so every badge
+// inside the inspector root renders verbatim via one root-scoped rule;
+// (0,2,0) beats the lib root rule's (0,1,0) regardless of cascade order.
+// Keep in sync with LLMConversation.styles.scss.
+
+.llm-conversation [data-slot='badge'] {
+	text-transform: none;
+}
+
+[data-class='llm-turn-block__role-tag'],
+[data-class='llm-chat-message__role-tag'] {
+	font-size: 11px;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+[data-class='llm-chat-message__finish-reason'] {
+	margin: 0;
+	font-family: monospace;
+	font-size: 11px;
+}
+
+[data-class='llm-io-section__mime'] {
+	margin: 0;
+	font-family: monospace;
+	font-size: 10px;
+	padding: 1px 6px;
+}
+
+[data-class='llm-metrics-summary__tag'] {
+	margin: 0;
+	font-size: 11px;
+	padding: 2px 8px;
+	border-radius: 4px;
+}
+
+[data-class='prompt-view__id-tag'],
+[data-class='prompt-view__url-tag'],
+[data-class='prompt-view__vendor-tag'],
+[data-class='prompt-view__version-tag'],
+[data-class='agent-view__name-tag'],
+[data-class='agent-view__id-tag'],
+[data-class='chain-view__name-tag'],
+[data-class='llm-tool-execution-view__id-tag'],
+[data-class='llm-tool-execution-view__name-tag'],
+[data-class='llm-tool-def__name-tag'],
+[data-class='llm-retriever-view__top-k'] {
+	margin: 0;
+	font-family: monospace;
+	font-size: 11px;
+	// The lib's own `[data-variant]` rules out-rank shorthand overrides here, so
+	// recolor via the documented `--badge-outlined-*` tokens they read. Solid
+	// badges are governed by `--badge-internal-*`, which the shorthands below
+	// (same specificity, later cascade) still override.
+	--badge-outlined-background-color: color-mix(
+		in srgb,
+		var(--primary-500) 12%,
+		var(--l4-background)
+	);
+	--badge-outlined-border-color: color-mix(
+		in srgb,
+		var(--primary-500) 30%,
+		var(--l2-border)
+	);
+	--badge-outlined-color: var(--text-primary, var(--l1-foreground));
+	background-color: color-mix(
+		in srgb,
+		var(--primary-500) 12%,
+		var(--l4-background)
+	);
+	border-color: color-mix(in srgb, var(--primary-500) 30%, var(--l2-border));
+	color: var(--text-primary, var(--l1-foreground));
+}
+
+[data-class='agent-view__name-tag'] {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+[data-class^='llm-retriever-doc__score--'],
+[data-class^='llm-reranker-doc__score--'] {
+	font-family: monospace;
+	font-size: 11px;
+}
+
+[data-class='llm-retriever-doc__score--high'],
+[data-class='llm-reranker-doc__score--high'] {
+	--badge-outlined-background-color: color-mix(
+		in srgb,
+		var(--success-500, #22c55e) 12%,
+		transparent
+	);
+	--badge-outlined-border-color: color-mix(
+		in srgb,
+		var(--success-500, #22c55e) 30%,
+		transparent
+	);
+}
+
+[data-class='llm-retriever-doc__score--med'],
+[data-class='llm-reranker-doc__score--med'] {
+	--badge-outlined-background-color: color-mix(
+		in srgb,
+		var(--warning-500, #f59e0b) 12%,
+		transparent
+	);
+	--badge-outlined-border-color: color-mix(
+		in srgb,
+		var(--warning-500, #f59e0b) 30%,
+		transparent
+	);
+}
+
+[data-class='llm-retriever-doc__score--low'],
+[data-class='llm-reranker-doc__score--low'] {
+	--badge-outlined-background-color: color-mix(
+		in srgb,
+		var(--error-500, #ef4444) 12%,
+		transparent
+	);
+	--badge-outlined-border-color: color-mix(
+		in srgb,
+		var(--error-500, #ef4444) 30%,
+		transparent
+	);
+}
+
+// Mirror of `.llm-secondary-pill` and its modifiers above.
+[data-class^='llm-secondary-pill'] {
+	margin: 0;
+	padding: 4px 10px;
+	border-radius: 999px;
+	// Outlined badges read these tokens inside the lib's `[data-variant]` rule,
+	// which out-ranks the `background`/`color` shorthands below.
+	--badge-outlined-background-color: var(--bg-canvas, var(--l4-background));
+	--badge-outlined-border-color: transparent;
+	--badge-outlined-color: var(--text-secondary, var(--l2-foreground));
+	background: var(--bg-canvas, var(--l4-background));
+	color: var(--text-secondary, var(--l2-foreground));
+}
+
+[data-class*='llm-secondary-pill--clickable'] {
+	cursor: pointer;
+	min-height: 32px;
+	border: none;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	appearance: none;
+	-webkit-appearance: none;
+
+	&:focus-visible {
+		outline: 2px solid var(--primary-500);
+		outline-offset: 2px;
+	}
+}
+
+[data-class*='llm-secondary-pill--tag'] {
+	border: 1px solid var(--l2-border);
+	background: var(--l4-background);
+	color: var(--text-secondary, var(--l2-foreground));
+	--badge-outlined-background-color: var(--l4-background);
+	--badge-outlined-border-color: var(--l2-border);
+	--badge-outlined-color: var(--text-secondary, var(--l2-foreground));
+}
+
+[data-class*='llm-secondary-pill--exception'] {
+	border: 1px solid var(--error-500, var(--bg-cherry-500));
+	background: color-mix(
+		in srgb,
+		var(--error-500, var(--bg-cherry-500)) 10%,
+		var(--l4-background)
+	);
+	color: var(--error-500, var(--bg-cherry-500));
+	--badge-outlined-background-color: color-mix(
+		in srgb,
+		var(--error-500, var(--bg-cherry-500)) 10%,
+		var(--l4-background)
+	);
+	--badge-outlined-border-color: var(--error-500, var(--bg-cherry-500));
+	--badge-outlined-color: var(--error-500, var(--bg-cherry-500));
+}

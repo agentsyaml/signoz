@@ -112,6 +112,20 @@ func TestPrepareRuleFilterExpression(t *testing.T) {
 			expectedFound:      true,
 		},
 		{
+			name: "SelectedFormula_ResolvesAggregationReferencesCaseInsensitively",
+			condition: &ruletypes.RuleCondition{
+				SelectedQuery: "f1",
+				CompositeQuery: &ruletypes.AlertCompositeQuery{Queries: []qbtypes.QueryEnvelope{
+					hiddenLogQuery, logQuery,
+					{Type: qbtypes.QueryTypeFormula, Spec: qbtypes.QueryBuilderFormula{Name: "F1", Expression: "[b.0] / [a.count]"}},
+				}},
+			},
+			signal:             telemetrytypes.SignalLogs,
+			labels:             map[string]string{},
+			expectedExpression: "(body CONTAINS 'timeout') OR (severity_text='ERROR')",
+			expectedFound:      true,
+		},
+		{
 			name: "SelectedFormula_UnfilteredInputMatchesEverything",
 			condition: &ruletypes.RuleCondition{
 				SelectedQuery:  "F2",

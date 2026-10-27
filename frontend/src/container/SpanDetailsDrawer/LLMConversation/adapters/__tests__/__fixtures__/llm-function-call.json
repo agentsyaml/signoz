@@ -1,0 +1,7 @@
+{
+	"llm.function_call": "{\"name\":\"f\",\"arguments\":\"{}\"}",
+	"llm.output_messages.0.message.role": "assistant",
+	"llm.output_messages.0.message.content": "Calling function",
+	"gen_ai.output.messages": "[{\"role\":\"assistant\",\"content\":\"Calling function\"}]",
+	"gen_ai.response.finish_reasons": "[\"stop\",\"tool_calls\"]"
+}

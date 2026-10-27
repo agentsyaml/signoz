@@ -83,6 +83,7 @@
     "dompurify": "3.4.15",
     "event-source-polyfill": "1.0.31",
     "eventemitter3": "5.0.1",
+    "github-markdown-css": "5.8.1",
     "history": "4.10.1",
     "html-to-image": "1.11.13",
     "http-status-codes": "2.3.0",
@@ -127,7 +128,7 @@
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0",
     "rehype-raw": "7.0.0",
-    "remark-gfm": "^3.0.1",
+    "remark-gfm": "3.0.1",
     "rollup-plugin-visualizer": "7.0.0",
     "rrule": "2.8.1",
     "styled-components": "^5.3.11",
@@ -163,9 +164,9 @@
     "@commitlint/config-conventional": "20.4.4",
     "@jest/globals": "30.4.1",
     "@jest/types": "30.2.0",
-    "@storybook/addon-a11y": "10.5.9",
-    "@storybook/addon-docs": "10.5.9",
-    "@storybook/react-vite": "10.5.9",
+    "@storybook/addon-a11y": "10.6.3",
+    "@storybook/addon-docs": "10.6.3",
+    "@storybook/react-vite": "10.6.3",
     "@storybook/test-runner": "0.24.5",
     "@testing-library/dom": "8.20.0",
     "@testing-library/jest-dom": "5.16.5",
@@ -213,10 +214,10 @@
     "redux-mock-store": "1.5.4",
     "sass": "1.97.3",
     "sharp": "0.35.4",
-    "storybook": "10.5.9",
+    "storybook": "10.6.3",
     "stylelint": "17.15.0",
     "svgo": "4.1.0",
-    "ts-jest": "29.4.9",
+    "ts-jest": "29.4.15",
     "typescript-plugin-css-modules": "5.2.0",
     "use-sync-external-store": "1.6.0",
     "vite-plugin-checker": "0.12.0",
@@ -235,5 +236,6 @@
     "*.(scss|css)": [
       "stylelint"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.34.4+sha512.8768be55200ae3f2226b6527fcca2687e14bc4e5f12d7721a0f25da3df47915177058648db4177baf348120fa0ba2752d8d8d93f6beaf1fe64ae18da8de961af"
 }

@@ -17,7 +17,7 @@ jest.mock(
 		),
 );
 
-import { SpanDuration } from '../Success';
+import Success, { SpanDuration } from '../Success';
 import successStyles from '../Success.module.scss';
 
 const renderWithTraceProvider: typeof render = (ui, options) =>
@@ -33,6 +33,21 @@ const SELECTED_NON_MATCHING_SPAN_CLASS = successStyles.isSelectedNonMatching;
 jest.mock('components/TimelineV3/TimelineV3', () => ({
 	__esModule: true,
 	default: (): null => null,
+}));
+
+jest.mock('@tanstack/react-virtual', () => ({
+	useVirtualizer: ({ count }: { count: number }) => ({
+		getVirtualItems: () =>
+			Array.from({ length: count }, (_, index) => ({
+				index,
+				key: index,
+				start: index * 54,
+				size: 54,
+			})),
+		getTotalSize: () => count * 54,
+		scrollToIndex: jest.fn(),
+	}),
+	Virtualizer: jest.fn(),
 }));
 
 // Mock the hooks
@@ -282,5 +297,55 @@ describe('SpanDuration', () => {
 		expect(spanElement).toHaveClass(DIMMED_SPAN_CLASS);
 		expect(spanElement).not.toHaveClass(HIGHLIGHTED_SPAN_CLASS);
 		expect(spanElement).not.toHaveClass(INTERESTED_SPAN_CLASS);
+	});
+});
+
+describe('Success span hint precedence', () => {
+	it('uses the detailed AI kind once and retains non-AI HTTP status', () => {
+		const embeddingSpan: SpanV3 = {
+			...mockSpan,
+			span_id: 'embedding-span',
+			attributes: {
+				'gen_ai.operation.name': 'embeddings',
+				'gen_ai.request.model': 'text-embedding-3-small',
+			},
+			response_status_code: '504',
+		};
+		const httpSpan: SpanV3 = {
+			...mockSpan,
+			span_id: 'http-span',
+			response_status_code: '503',
+		};
+		const toolHttpSpan: SpanV3 = {
+			...mockSpan,
+			span_id: 'tool-http-span',
+			attributes: { 'openinference.span.kind': 'TOOL' },
+			response_status_code: '502',
+		};
+		const spans = [embeddingSpan, httpSpan, toolHttpSpan];
+
+		renderWithTraceProvider(
+			<Success
+				spans={spans}
+				traceMetadata={mockTraceMetadata}
+				interestedSpanId={{ spanId: '', isUncollapsed: false }}
+				uncollapsedNodes={spans.map(({ span_id }) => span_id)}
+				isFullDataLoaded={false}
+				localUncollapsedNodes={new Set()}
+				setLocalUncollapsedNodes={jest.fn()}
+				setInterestedSpanId={jest.fn()}
+				selectedSpan={undefined}
+				setSelectedSpan={jest.fn()}
+				filteredSpanIds={[]}
+				isFilterActive={false}
+			/>,
+		);
+
+		expect(screen.getByText('EMBEDDING')).toBeInTheDocument();
+		expect(screen.getByText('TOOL')).toBeInTheDocument();
+		expect(screen.queryByTestId('span-hint-badge-llm')).not.toBeInTheDocument();
+		expect(screen.queryByText('504')).not.toBeInTheDocument();
+		expect(screen.getByText('503')).toBeInTheDocument();
+		expect(screen.getByText('502')).toBeInTheDocument();
 	});
 });

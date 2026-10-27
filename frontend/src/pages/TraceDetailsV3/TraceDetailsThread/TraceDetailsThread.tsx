@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { Button } from '@signozhq/ui/button';
 import { Callout } from '@signozhq/ui/callout';
 import history, { hasInAppHistory } from 'lib/history';
 import { TraceDetailV3URLProps } from 'types/api/trace/getTraceV3';
@@ -39,13 +40,18 @@ function TraceDetailsThread(): JSX.Element {
 		spans,
 		spansAboveFirstPage,
 		isLoading,
-		isError,
+		isNotFound,
+		isInitialError,
+		isRefetchError,
+		pageError,
+		retryPage,
 		hasNextPage,
 		hasPreviousPage,
 		isFetchingNextPage,
 		isFetchingPreviousPage,
 		fetchNextPage,
 		fetchPreviousPage,
+		refetch,
 	} = useTraceThread({ traceId: traceId || '', interestedSpanId });
 
 	const interestedSpanStatus = getInterestedSpanStatus(
@@ -58,6 +64,8 @@ function TraceDetailsThread(): JSX.Element {
 	);
 
 	const selectedSpan = spans.find((span) => span.span_id === selectedSpanId);
+	const isAnchorNotFound = !!interestedSpanId && isNotFound;
+	const showInitialError = isInitialError && !isAnchorNotFound;
 	const [spanDetailVariant, setSpanDetailVariant] = useSpanDetailVariant();
 	const isBottomDocked = spanDetailVariant === SpanDetailVariant.DOCKED;
 
@@ -71,8 +79,10 @@ function TraceDetailsThread(): JSX.Element {
 	);
 	const hasNoThread =
 		!isLoading &&
-		interestedSpanStatus !== InterestedSpanStatus.NotFound &&
-		(isError || spans.length === 0);
+		!showInitialError &&
+		!isRefetchError &&
+		!isAnchorNotFound &&
+		spans.length === 0;
 
 	const renderBody = (): JSX.Element => {
 		if (isLoading) {
@@ -85,7 +95,31 @@ function TraceDetailsThread(): JSX.Element {
 				</div>
 			);
 		}
-		if (interestedSpanStatus === InterestedSpanStatus.NotFound) {
+		if (showInitialError) {
+			return (
+				<Callout
+					type="error"
+					title="Could not load this thread"
+					testId="thread-load-error"
+				>
+					<Button
+						size="md"
+						testId="thread-retry"
+						variant="outlined"
+						color="secondary"
+						onClick={(): void => {
+							void refetch();
+						}}
+					>
+						Try again
+					</Button>
+				</Callout>
+			);
+		}
+		if (
+			interestedSpanStatus === InterestedSpanStatus.NotFound &&
+			isAnchorNotFound
+		) {
 			return (
 				<ThreadSpanNotFound
 					onGoBack={(): void => {
@@ -105,6 +139,44 @@ function TraceDetailsThread(): JSX.Element {
 		}
 		return (
 			<>
+				{isRefetchError && !pageError && (
+					<Callout
+						type="error"
+						title="Could not refresh this thread"
+						testId="thread-refetch-error"
+					>
+						<Button
+							size="md"
+							testId="thread-refetch-retry"
+							variant="outlined"
+							color="secondary"
+							onClick={(): void => {
+								void refetch();
+							}}
+						>
+							Try again
+						</Button>
+					</Callout>
+				)}
+				{pageError && (
+					<Callout
+						type="error"
+						title="Could not load more spans"
+						testId="thread-page-error"
+					>
+						<Button
+							size="md"
+							testId="thread-page-retry"
+							variant="outlined"
+							color="secondary"
+							onClick={(): void => {
+								void retryPage();
+							}}
+						>
+							Try again
+						</Button>
+					</Callout>
+				)}
 				{interestedSpanStatus === InterestedSpanStatus.NoIOMessages && (
 					<Callout
 						type="info"
@@ -143,17 +215,20 @@ function TraceDetailsThread(): JSX.Element {
 	return (
 		<div className={styles.root} data-testid="trace-details-thread">
 			<div className={styles.content}>
-				{!hasNoThread && interestedSpanStatus !== InterestedSpanStatus.NotFound && (
-					<div className={styles.toolbar}>
-						<ThreadViewToggle
-							value={view}
-							onChange={(next): void => {
-								void setView(next);
-							}}
-						/>
-						{spans.length > 0 && <span>Showing {spans.length} spans</span>}
-					</div>
-				)}
+				{!hasNoThread &&
+					!(
+						interestedSpanStatus === InterestedSpanStatus.NotFound && isAnchorNotFound
+					) && (
+						<div className={styles.toolbar}>
+							<ThreadViewToggle
+								value={view}
+								onChange={(next): void => {
+									void setView(next);
+								}}
+							/>
+							{spans.length > 0 && <span>Showing {spans.length} spans</span>}
+						</div>
+					)}
 				{renderBody()}
 				{isBottomDocked && spanDetails}
 			</div>

@@ -1,9 +1,14 @@
-import { useState } from 'react';
-import MEditor, { EditorProps, Monaco } from '@monaco-editor/react';
+import { memo, useCallback, useMemo, useState } from 'react';
+import MEditor from '@monaco-editor/react';
+import type { EditorProps, Monaco } from '@monaco-editor/react';
 import { Color } from '@signozhq/design-tokens';
+import { WrapText } from '@signozhq/icons';
+import { Button } from '@signozhq/ui/button';
 import { Switch } from '@signozhq/ui/switch';
+import { Tooltip } from '@signozhq/ui/tooltip';
 import { Typography } from '@signozhq/ui/typography';
 import { useIsDarkMode } from 'hooks/useDarkMode';
+import { ReadOnlyJson } from './ReadOnlyJson';
 
 import './JsonView.styles.scss';
 
@@ -11,6 +16,8 @@ export interface JsonViewProps {
 	data: string;
 	height?: string;
 	fontSize?: number;
+	compact?: boolean;
+	minimalChrome?: boolean;
 }
 
 const editorOptions: EditorProps['options'] = {
@@ -28,8 +35,8 @@ const editorOptions: EditorProps['options'] = {
 	// without an opaque backing, so scrolling lines bleed through and overlap it.
 	stickyScroll: { enabled: false },
 	scrollbar: {
-		vertical: 'hidden',
-		horizontal: 'hidden',
+		vertical: 'auto',
+		horizontal: 'auto',
 		// Once the editor can't scroll any further, release the wheel event so
 		// the parent container picks it up. Without this Monaco swallows the
 		// event at the boundary and outer scroll feels stuck.
@@ -57,42 +64,113 @@ function setEditorTheme(monaco: Monaco): void {
 	});
 }
 
-function JsonView({
+const minimalChromeOptions: EditorProps['options'] = {
+	contextmenu: false,
+	links: false,
+	quickSuggestions: false,
+	occurrencesHighlight: 'off',
+	renderLineHighlight: 'none',
+	selectionHighlight: false,
+	hideCursorInOverviewRuler: true,
+	overviewRulerBorder: false,
+	overviewRulerLanes: 0,
+	glyphMargin: false,
+	lineDecorationsWidth: 0,
+	lineNumbersMinChars: 0,
+};
+
+const noop = (): void => {};
+
+function MonacoJsonView({
 	data,
 	height = '575px',
 	fontSize = 12,
+	compact = false,
+	minimalChrome = false,
 }: JsonViewProps): JSX.Element {
 	const [isWrapWord, setIsWrapWord] = useState(true);
 	const isDarkMode = useIsDarkMode();
 
+	const dynamicOptions = useMemo<EditorProps['options']>(
+		() => ({
+			...editorOptions,
+			fontSize,
+			wordWrap: isWrapWord ? 'on' : 'off',
+			...(minimalChrome
+				? {
+						...minimalChromeOptions,
+						lineNumbers: compact ? 'off' : 'on',
+					}
+				: {}),
+		}),
+		[fontSize, isWrapWord, minimalChrome, compact],
+	);
+
+	const handleBeforeMount = useCallback(setEditorTheme, []);
+	const handleWrapToggle = useCallback((checked: boolean): void => {
+		setIsWrapWord(checked);
+	}, []);
+	const handleWrapButtonClick = useCallback((): void => {
+		setIsWrapWord((prev) => !prev);
+	}, []);
+
 	return (
-		<div className="json-view">
+		<div className={`json-view ${compact ? 'json-view--compact' : ''}`}>
 			<MEditor
 				value={data}
 				language="json"
-				options={{
-					...editorOptions,
-					fontSize,
-					wordWrap: isWrapWord ? 'on' : 'off',
-				}}
-				onChange={(): void => {}}
+				options={dynamicOptions}
+				onChange={noop}
 				height={height}
 				theme={isDarkMode ? 'signoz-dark' : 'light'}
-				beforeMount={setEditorTheme}
+				beforeMount={handleBeforeMount}
 			/>
 			<div className="json-view__footer">
 				<div className="json-view__wrap-toggle">
-					<Typography.Text>Wrap text</Typography.Text>
-					<Switch
-						color="primary"
-						textPlacement="right"
-						value={isWrapWord}
-						onChange={(checked): void => setIsWrapWord(checked)}
-					/>
+					{compact ? (
+						<Tooltip title={isWrapWord ? 'Unwrap text' : 'Wrap text'}>
+							<Button
+								variant="ghost"
+								size="sm"
+								color="secondary"
+								onClick={handleWrapButtonClick}
+								aria-label="Wrap text"
+								aria-pressed={isWrapWord}
+								data-class="json-view__wrap-icon-btn"
+							>
+								<WrapText size={12} />
+							</Button>
+						</Tooltip>
+					) : (
+						<>
+							<Typography.Text className="json-view__wrap-toggle-label">
+								Wrap text
+							</Typography.Text>
+							<Switch
+								color="primary"
+								textPlacement="right"
+								value={isWrapWord}
+								onChange={handleWrapToggle}
+							/>
+						</>
+					)}
 				</div>
 			</div>
 		</div>
 	);
 }
 
-export default JsonView;
+function JsonView(props: JsonViewProps): JSX.Element {
+	if (props.compact && props.minimalChrome) {
+		return (
+			<ReadOnlyJson
+				data={props.data}
+				height={props.height ?? '575px'}
+				fontSize={props.fontSize ?? 12}
+			/>
+		);
+	}
+	return <MonacoJsonView {...props} />;
+}
+
+export default memo(JsonView);

@@ -153,14 +153,98 @@ describe('useTraceThread', () => {
 		const { result } = renderThread();
 
 		await waitFor(() => expect(result.current.isError).toBe(true));
+		expect(result.current.isNotFound).toBe(true);
+		expect(result.current.isInitialError).toBe(true);
 		expect(mockGetTraceThread).toHaveBeenCalledTimes(1);
 	});
 
-	it('retries other errors', async () => {
-		mockGetTraceThread.mockRejectedValue(httpError(500));
+	it.each([
+		['500', httpError(500)],
+		['401', httpError(401)],
+		['403', httpError(403)],
+		['network', new Error('Network failure')],
+	])('retries %s errors', async (_label, error) => {
+		mockGetTraceThread.mockRejectedValue(error);
 		const { result } = renderThread();
 
 		await waitFor(() => expect(result.current.isError).toBe(true));
+		expect(result.current.isNotFound).toBe(false);
+		expect(result.current.isInitialError).toBe(true);
 		expect(mockGetTraceThread).toHaveBeenCalledTimes(4);
+	});
+
+	it('retains loaded spans and retries a failed page in the same direction', async () => {
+		mockGetTraceThread
+			.mockResolvedValueOnce(page(0))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockResolvedValueOnce(page(1));
+		const { result } = renderThread();
+		await waitFor(() => expect(result.current.spans).toHaveLength(3));
+
+		await act(() => result.current.fetchNextPage());
+		expect(result.current.spans).toHaveLength(3);
+		expect(result.current.pageError).toBe('next');
+		await act(() => result.current.retryPage());
+
+		expect(result.current.spans).toHaveLength(6);
+		expect(result.current.pageError).toBeUndefined();
+		expect(mockGetTraceThread.mock.calls[5][1]).toStrictEqual(
+			expect.objectContaining({ after: 'c0' }),
+		);
+	});
+
+	it('retries a failed previous page in the previous direction', async () => {
+		mockGetTraceThread
+			.mockResolvedValueOnce(page(1))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockResolvedValueOnce(page(0));
+		const { result } = renderThread();
+		await waitFor(() => expect(result.current.spans).toHaveLength(3));
+
+		await act(() => result.current.fetchPreviousPage());
+		expect(result.current.pageError).toBe('previous');
+		await act(() => result.current.retryPage());
+
+		expect(result.current.spans).toHaveLength(6);
+		expect(mockGetTraceThread.mock.calls[5][1]).toStrictEqual(
+			expect.objectContaining({ before: 'c1' }),
+		);
+	});
+
+	it('does not carry a page error to a different anchor query', async () => {
+		mockGetTraceThread
+			.mockResolvedValueOnce(page(0))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockRejectedValueOnce(httpError(500))
+			.mockImplementation(() => Promise.resolve(page(2)));
+		const { result, rerender } = renderThread();
+		await waitFor(() => expect(result.current.spans).toHaveLength(3));
+		await act(() => result.current.fetchNextPage());
+		expect(result.current.pageError).toBe('next');
+
+		rerender({ interestedSpanId: 'other' });
+		await waitFor(() =>
+			expect(result.current.spans[0]?.span_id).toBe('span-2-0'),
+		);
+		expect(result.current.pageError).toBeUndefined();
+	});
+
+	it('preserves cached spans and exposes a failed background refetch', async () => {
+		const { result, queryClient } = renderThread();
+		await waitFor(() => expect(result.current.spans).toHaveLength(3));
+		mockGetTraceThread.mockRejectedValue(httpError(500));
+
+		await act(() => queryClient.refetchQueries());
+
+		expect(result.current.spans).toHaveLength(3);
+		expect(result.current.isRefetchError).toBe(true);
 	});
 });

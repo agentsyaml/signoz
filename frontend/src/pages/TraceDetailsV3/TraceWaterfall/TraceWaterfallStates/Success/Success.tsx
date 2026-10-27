@@ -21,6 +21,7 @@ import {
 import { useVirtualizer, Virtualizer } from '@tanstack/react-virtual';
 import cx from 'classnames';
 import TimelineV3 from 'components/TimelineV3/TimelineV3';
+import { detectSpanKindFromMaps } from 'container/SpanDetailsDrawer/LLMConversation/adapters/spanKind';
 import { convertTimeToRelevantUnit } from 'utils/traceUtils';
 import { useCopySpanLink } from 'hooks/trace/useCopySpanLink';
 import { useIsDarkMode } from 'hooks/useDarkMode';
@@ -210,6 +211,11 @@ const SpanOverview = memo(function SpanOverview({
 	// light mode so the dot stands out against the white panel.
 	const effectiveColor = isDarkMode ? color : colorDark;
 
+	const aiSpanKind = useMemo(
+		() => detectSpanKindFromMaps(span.attributes, span.resource),
+		[span.attributes, span.resource],
+	);
+
 	// Smart highlighting logic
 	const {
 		isSelected,
@@ -346,6 +352,17 @@ const SpanOverview = memo(function SpanOverview({
 			{/* Span name + service name */}
 			<span className={styles.treeLabel}>
 				{span.name}
+				{aiSpanKind !== 'UNKNOWN' && (
+					<Badge
+						variant="solid"
+						color="secondary"
+						textTransform="none"
+						data-class="waterfall-llm-badge"
+						testId="waterfall-llm-badge"
+					>
+						{aiSpanKind}
+					</Badge>
+				)}
 				<span className={styles.treeServiceName}>{span['service.name']}</span>
 			</span>
 
@@ -932,6 +949,7 @@ function Success(props: ISuccessProps): JSX.Element {
 					<div className={styles.statusCol}>
 						{virtualItems.map((virtualRow) => {
 							const span = spans[virtualRow.index];
+							const spanKind = detectSpanKindFromMaps(span.attributes, span.resource);
 							const { isSelected, isDimmed, isSelectedNonMatching, isMatching } =
 								getSpanStateClasses(
 									span.span_id,
@@ -960,7 +978,9 @@ function Success(props: ISuccessProps): JSX.Element {
 									onMouseLeave={(): void => applyHoverClass(null)}
 									onClick={(): void => handleSpanClick(span)}
 								>
-									<SpanHintBadge span={span} />
+									{(spanKind === 'UNKNOWN' || !isAiSpan(span)) && (
+										<SpanHintBadge span={span} />
+									)}
 								</div>
 							);
 						})}
